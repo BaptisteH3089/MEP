@@ -453,56 +453,10 @@ def PredsModel(X, Y, list_vect_page):
             matrix_input = np.concatenate((matrix_input, vect_page))
     print("The shape of the matrix input: {}".format(matrix_input.shape))
     preds_gbc = gbc.predict_proba(matrix_input)
+    preds = gbc.predict(matrix_input)
+    print("The variety of the predictions")
+    print([(x, list(preds).count(x)) for x in set(list(preds))])
     return preds_gbc
-
-
-#%%
-
-# GlobalValidateModel(dico_bdd, list_mdp_data, 3, 20)
-
-print(TuningHyperParamGBC(dico_bdd, dict_arts, list_mdp_data, 4, 30, list_features))
-
-## 2 - 50
-# clf.best_params_ {'criterion': 'mse', 'max_depth': 3, 'n_estimators': 50}
-# clf.best_score_ 0.9777991425805286
-## 3 - 20
-# clf.best_params_ {'criterion': 'mse', 'max_depth': 3, 'n_estimators': 65}
-# clf.best_score_ 0.9925850340136055
-## 4 - 20
-# clf.best_params_ {'criterion': 'mse', 'max_depth': 3, 'n_estimators': 125}
-# clf.best_score_ 0.8826390559919535
-## 5 - 20
-# clf.best_params_ {'criterion': 'mse', 'max_depth': 4, 'n_estimators': 65}
-# clf.best_score_ 0.9148272642390289
-## 2 - 30
-# clf.best_params_ {'criterion': 'friedman_mse', 'max_depth': 5, 'n_estimators': 100}
-# clf.best_score_ 0.9199479776464266
-## 4 - 25
-# clf.best_params_ {'criterion': 'friedman_mse', 'max_depth': 3, 'n_estimators': 50}
-# clf.best_score_ 0.9202237704198488
-
-
-#%%
-
-nb_arts = 3
-len_sample = 25
-final_obj = GetSelectionOfArticles(dico_bdd, nb_arts, len_sample)
-list_vect_page = CreationListVectorsPage(final_obj, dict_arts, list_features)
-
-
-#%%
-
-# Now, I train the model. Well, first the matrices
-args_cr = [dico_bdd, dict_arts, list_mdp_data]
-X, Y, dict_labels = CreateXYFromScratch(*args_cr, 3, 17, list_features)
-preds_gbc = PredsModel(X, Y, list_vect_page)
-# Use of the dict_labels to have the real modules
-
-
-#%%
-
-rep_data = '/Users/baptistehessel/Documents/DAJ/MEP/ArticlesOptions/'
-#dict_art = propositions.ExtractDicoArtInput(file_path)
 
 
 def CreationListDictArt(rep_data):
@@ -530,47 +484,35 @@ def GenerationAllNTupleFromFiles(list_dict_arts, nb_arts):
     elif nb_arts == 3:
         all_ntuple = [(x, y, z) for i, x in enumerate(select_arts)
                       for j, y in enumerate(select_arts[i + 1:])
-                      for z in select_arts[j+2:]]
+                      for z in select_arts[i + j + 2:]]
     elif nb_arts == 4:
         all_ntuple = [(a, b, c, d) for i, a in enumerate(select_arts)
                       for j, b in enumerate(select_arts[i + 1:])
-                      for k, c in select_arts[j + 2:]
-                      for d in select_arts[k + 3:]]
+                      for k, c in enumerate(select_arts[i + j + 2:])
+                      for d in select_arts[i + j + k + 3:]]
     elif nb_arts == 5:
         all_ntuple = [(a, b, c, d, e) for i, a in enumerate(select_arts)
                       for j, b in enumerate(select_arts[i + 1:])
-                      for k, c in enumerate(select_arts[j + 2:])
-                      for l, d in enumerate(select_arts[k + 3:])
-                      for e in enumerate(select_arts[l + 4:])]
+                      for k, c in enumerate(select_arts[i + j + 2:])
+                      for l, d in enumerate(select_arts[i + j + k + 3:])
+                      for e in enumerate(select_arts[i + j + k + l + 4:])]
     else:
         str_exc = 'Wrong nb of arts: {}. Must be in [2, 5]'
         raise MyException(str_exc.format(nb_arts))
-    print("The total nb of triplets generated: {}".format(len(all_ntuple)))
+    print("The total nb of {}-tuple generated: {}".format(nb_arts, len(all_ntuple)))
     return all_ntuple
 
 
-list_dict_arts = CreationListDictArt(rep_data)
-
-
-#%%
-
-all_ntuples = GenerationAllNTupleFromFiles(list_dict_arts, 3)
-# We should check that the ntuples obtained respect the constraints
-
-def GetSelectionOfArticlesFromFiles(all_ntuple):
+def GetSelectionOfArticlesFromFiles(all_ntuples):
     # Use of the constraints 
     possib_area = ConstraintArea(all_ntuples)
     possib_imgs = ConstraintImgs(all_ntuples)
     # Intersection of each result obtained
     final_obj = set(possib_imgs) & set(possib_area)
-    str_prt = "The number of triplets that respect the constraints: {}"
+    str_prt = "The number of ntuples that respect the constraints: {}"
     print(str_prt.format(len(final_obj)))
     return final_obj
 
-
-final_obj = GetSelectionOfArticlesFromFiles(all_ntuple)
-# Fine, now I need to train the model with the right number of articles per
-# page
 
 def CreationListVectorsPageFromFiles(final_obj, list_dict_arts, list_feat):
     """
@@ -594,101 +536,132 @@ def CreationListVectorsPageFromFiles(final_obj, list_dict_arts, list_feat):
     return list_vect_page
 
 
+def SelectBestTriplet(all_triplets):
+    """
+    Computation of the variance of a proposition and then the final score of a
+    triplet.
+    """
+    vect_var = []
+    for triplet in all_triplets:
+        mean_vect = np.mean([vect_pg for _, vect_pg in triplet], axis=0)
+        # Computation of the variance
+        # Need to determine the area
+        # Size of the vectors article: 15
+        ind_aireTot = list_features.index('aireTot')
+        size_vect_pg = mean_vect.shape[1]
+        array_weights = triplet[0][1][0][range(ind_aireTot, size_vect_pg, 15)]
+        weights_tmp = list(array_weights / sum(array_weights))
+        weights = []
+        for weight in weights_tmp:
+            weights += [weight] * 15
+        if len(weights) != size_vect_pg:
+            print("Something's wrong with the weights")
+            print("weights\n", weights)
+            print("weights_tmp\n", weights_tmp)
+            print("array_weights", array_weights)
+            print("triplet: {}".format(triplet))
+            break
+        variance_triplet = 0
+        for _, vect_page in triplet:
+            diff_vect = np.array(weights) * (vect_page - mean_vect)
+            variance_triplet += int(np.sqrt(np.dot(diff_vect, diff_vect.T)))
+        vect_var.append(variance_triplet)
+    # We standardize the vect_var
+    std_var = np.std(vect_var)
+    mean_var = np.mean(vect_var)
+    stand_vect_var = (vect_var - mean_var) / std_var
+    all_triplets_scores = []
+    for triplet, var in zip(all_triplets, stand_vect_var):
+        score_prop = sum((sc for sc, _ in triplet))
+        all_triplets_scores.append((score_prop + var, triplet))
+    # Ultimately, we take the triplet with the best score
+    all_triplets_scores.sort(key=itemgetter(0), reverse=True)
+    best_triplet = all_triplets_scores[0]
+    print("The best triplet has the score: {:>40.2f}.".format(best_triplet[0]))
+    print("{:-^80}".format("The score of each page"))
+    for sc, _ in best_triplet[1]:
+        print("{:40.4f}".format(sc))
+    print("{:-^80}".format("The vectors page"))
+    for _, page in best_triplet[1]:
+        print("{:^40}".format(str(page)))
+    return best_triplet
+
+
+def GenerationOfAllTriplets(preds_gbc, list_vect_page):
+    pages_with_score = []
+    for line, vect_pg in zip(preds_gbc, list_vect_page):
+        pages_with_score.append((round(max(line), 4), vect_pg))
+    # Generation of every triplet of pages
+    # Eventually, the right formula
+    all_triplets = [[p1, p2, p3] for i, p1 in enumerate(pages_with_score)
+                    for j, p2 in enumerate(pages_with_score[i + 1:])
+                    for p3 in pages_with_score[i + j +2:]]
+    return all_triplets
+
+
+#%%
+
+# GlobalValidateModel(dico_bdd, list_mdp_data, 3, 20)
+
+# print(TuningHyperParamGBC(dico_bdd, dict_arts, list_mdp_data, 4, 30, list_features))
+
+nb_arts = 3
+len_sample = 25
+final_obj = GetSelectionOfArticles(dico_bdd, nb_arts, len_sample)
+list_vect_page = CreationListVectorsPage(final_obj, dict_arts, list_features)
+# Now, I train the model. Well, first the matrices
+args_cr = [dico_bdd, dict_arts, list_mdp_data]
+X, Y, dict_labels = CreateXYFromScratch(*args_cr, 3, 17, list_features)
+preds_gbc = PredsModel(X, Y, list_vect_page)
+# Use of the dict_labels to have the real modules
+
+## 2 - 50
+# clf.best_params_ {'criterion': 'mse', 'max_depth': 3, 'n_estimators': 50}
+# clf.best_score_ 0.9777991425805286
+## 3 - 20
+# clf.best_params_ {'criterion': 'mse', 'max_depth': 3, 'n_estimators': 65}
+# clf.best_score_ 0.9925850340136055
+## 4 - 20
+# clf.best_params_ {'criterion': 'mse', 'max_depth': 3, 'n_estimators': 125}
+# clf.best_score_ 0.8826390559919535
+## 5 - 20
+# clf.best_params_ {'criterion': 'mse', 'max_depth': 4, 'n_estimators': 65}
+# clf.best_score_ 0.9148272642390289
+## 2 - 30
+# clf.best_params_ {'criterion': 'friedman_mse', 'max_depth': 5, 'n_estimators': 100}
+# clf.best_score_ 0.9199479776464266
+## 4 - 25
+# clf.best_params_ {'criterion': 'friedman_mse', 'max_depth': 3, 'n_estimators': 50}
+# clf.best_score_ 0.9202237704198488
+
+
+#%%
+
+rep_data = '/Users/baptistehessel/Documents/DAJ/MEP/ArticlesOptions/'
+list_dict_arts = CreationListDictArt(rep_data)
+np_arts_pg = 4
+# all_ntuples = GenerationAllNTupleFromFiles(list_dict_arts, 3)
+all_couples = GenerationAllNTupleFromFiles(list_dict_arts, np_arts_pg)
+final_obj = GetSelectionOfArticlesFromFiles(all_couples)
+
+# We should check that the ntuples obtained respect the constraints
+# final_obj = GetSelectionOfArticlesFromFiles(all_ntuple)
+# Fine, now I need to train the model with the right nb of arts per page
 # Before that, I need to convert the list_dict_arts into list_vect_page
 args_files = [final_obj, list_dict_arts, list_features]
 list_vect_page = CreationListVectorsPageFromFiles(*args_files)
 
-
-#%%
-
 # Now, I train the model. Well, first the matrices
 args_cr = [dico_bdd, dict_arts, list_mdp_data]
-X, Y, dict_labels = CreateXYFromScratch(*args_cr, 3, 12, list_features)
+X, Y, dict_labels = CreateXYFromScratch(*args_cr, np_arts_pg, 12, list_features)
 preds_gbc = PredsModel(X, Y, list_vect_page)
+
 # Use of the dict_labels to have the real modules
 # I should do that for i in [2, 3, 4, 5] and use the predicted probas to keep
 # the pages with the best scores
 # First with the pages with 3 articles
-
-pages_with_score = []
-for line, vect_pg in zip(preds_gbc, list_vect_page):
-    pages_with_score.append((round(max(line), 4), vect_pg))
-
-# Generation of every triplet of pages
-# Eventually, the right formula
-all_triplets = [[p1, p2, p3] for i, p1 in enumerate(pages_with_score)
-                for j, p2 in enumerate(pages_with_score[i + 1:])
-                for p3 in pages_with_score[i + j +2:]]
-
-
-#%%
-
-# Computation of the variance of a proposition
-vect_var = []
-for triplet in all_triplets:
-    mean_vect = np.mean([vect_pg for _, vect_pg in triplet], axis=0)
-    # Computation of the variance
-    # Need to determine the area
-    # Size of the vectors article: 15
-    ind_aireTot = list_features.index('aireTot')
-    array_weights = triplet[0][1][0][range(ind_aireTot, 45, 15)]
-    weights_tmp = list(array_weights / sum(array_weights))
-    weights = []
-    for weight in weights_tmp:
-        weights += [weight] * 15
-    if len(weights) != 45:
-        print("Something's wrong with the weights")
-        print("weights\n", weights)
-        print("weights_tmp\n", weights_tmp)
-        print("array_weights", array_weights)
-        break
-    variance_triplet = 0
-    for _, vect_page in triplet:
-        diff_vect = np.array(weights) * (vect_page - mean_vect)
-        variance_triplet += int(np.sqrt(np.dot(diff_vect, diff_vect.T)))
-    vect_var.append(variance_triplet)
-# We standardize the vect_var
-std_var = np.std(vect_var)
-mean_var = np.mean(vect_var)
-stand_vect_var = (vect_var - mean_var) / std_var
-
-all_triplets_scores = []
-for triplet, var in zip(all_triplets, stand_vect_var):
-    score_prop = sum((sc for sc, _ in triplet))
-    all_triplets_scores.append((score_prop + var, triplet))
-# Ultimately, we take the triplet with the best score
-all_triplets_scores.sort(key=itemgetter(0), reverse=True)
-best_triplet = all_triplets_scores[0]
-print("The best triplet has the score: {:>40.2f}.".format(best_triplet[0]))
-print("{:-^80}".format("The score of each page"))
-for sc, _ in best_triplet[1]:
-    print("{:40.4f}".format(sc))
-print("{:-^80}".format("The vectors page"))
-for _, page in best_triplet[1]:
-    print("{:^40}".format(str(page)))
-
-# final_result = list(filter(lambda x: x[0] == max((sc for sc, _ in all_triplets_scores)), all_triplets_scores))
-
-
-
-
-
-
-
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
+all_triplets = GenerationOfAllTriplets(preds_gbc, list_vect_page)
+best_triplet = SelectBestTriplet(all_triplets)
 
 
 
