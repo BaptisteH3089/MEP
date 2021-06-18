@@ -59,7 +59,7 @@ def VerificationPageMDP(dico_narts, list_mdp_narts):
     str_prt = "The nb of 0 match found"
     print("{:<35} {:>35}".format(str_prt, list_all_matches.count(0)))
     print("{:<35} {:>35}".format("The total nb of pages", len(dico_narts)))
-    return "{:^70}".format("End of the verifications")
+    return "{:^80}".format("End of the verifications")
 
 
 # OK, there are some duplicates
@@ -120,7 +120,7 @@ def CreationDictLabels(vect_XY):
         if find is False:
             dict_labels[label] = mdp
             label += 1
-    print("There are {} labels in that dict.".format(label + 1))
+    print("{:<35} {:>35}".format("The nb of labels in that dict", label + 1))
     return dict_labels
 
 
@@ -147,72 +147,109 @@ def CreationXY(vect_XY, dict_labels):
 
 
 def TrainValidateModel(X, Y):
-    skf = StratifiedKFold(n_splits=3)
-    ss = ShuffleSplit(n_splits=3)
+    mean_rdc, mean_svc, mean_lsvc = [], [], []
+    mean_sgd, mean_gnb, mean_logregd, mean_logreg = [], [], [], []
+    mean_logrepnop, mean_logregl1 = [], []
+    mean_regel95, mean_regel85 = [], []
+    mean_gbc = []
+    ss = ShuffleSplit(n_splits=4)
     for i, (train, test) in enumerate(ss.split(X, Y)):
         # Random Forest
-        clf = RandomForestClassifier().fit(X[train], Y[train])
-        preds_clf = clf.predict(X[test])
-        score_clf = f1_score(Y[test], preds_clf, average='weighted')
+        rdc = RandomForestClassifier().fit(X[train], Y[train])
+        preds_rdc = rdc.predict(X[test])
+        score_rdc_w = f1_score(Y[test], preds_rdc, average='weighted')
+        score_rdc = f1_score(Y[test], preds_rdc, average='macro')
+        mean_rdc.append(score_rdc)
         # SVC
         svc = svm.SVC().fit(X[train], Y[train])
         preds_svc = svc.predict(X[test])
-        score_svc = f1_score(Y[test], preds_svc, average='weighted')
+        score_svc_w = f1_score(Y[test], preds_svc, average='weighted')
+        score_svc = f1_score(Y[test], preds_svc, average='macro')
+        mean_svc.append(score_svc)
         # Linear SVC
         linear_svc = make_pipeline(StandardScaler(), LinearSVC())
         linear_svc.fit(X[train], Y[train])
         preds_lsvc = linear_svc.predict(X[test])
-        score_lsvc = f1_score(Y[test], preds_lsvc, average='weighted')
+        score_lsvc_w = f1_score(Y[test], preds_lsvc, average='weighted')
+        score_lsvc = f1_score(Y[test], preds_lsvc, average='macro')
+        mean_lsvc.append(score_lsvc)
         # SGD
-        sgd = make_pipeline(StandardScaler(),
-                            SGDClassifier(max_iter=1000, tol=1e-3))
+        sgd = make_pipeline(StandardScaler(), SGDClassifier())
         sgd.fit(X[train], Y[train])
         preds_sgd = sgd.predict(X[test])
-        score_sgd = f1_score(Y[test], preds_sgd, average='weighted')
+        score_sgd_w = f1_score(Y[test], preds_sgd, average='weighted')
+        score_sgd = f1_score(Y[test], preds_sgd, average='macro')
+        mean_sgd.append(score_sgd)
         # Gaussian Naive Bayes
         gnb = GaussianNB().fit(X[train], Y[train])
         preds_gnb = gnb.predict(X[test])
-        score_gnb = f1_score(Y[test], preds_gnb, average='weighted')
-        # Logistic regression default
-        Xtrain_scaled = StandardScaler().fit_transform(X[train])
-        Xtest_scaled = StandardScaler().fit_transform(X[test])
-        logreg = LogisticRegression(max_iter=1000).fit(Xtrain_scaled, Y[train])
-        preds_logreg = logreg.predict(Xtest_scaled)
-        score_logreg = f1_score(Y[test], preds_logreg, average='weighted')
+        score_gnb_w = f1_score(Y[test], preds_gnb, average='weighted')
+        score_gnb = f1_score(Y[test], preds_gnb, average='macro')
+        mean_gnb.append(score_gnb)
+        # Logistic regression default - slightly better max_ter=1000
+        param = {'max_iter': 1000}
+        logreg = make_pipeline(StandardScaler(), LogisticRegression(**param))
+        logreg.fit(X[train], Y[train])
+        preds_logreg = logreg.predict(X[test])
+        score_logreg_w = f1_score(Y[test], preds_logreg, average='weighted')
+        score_logreg = f1_score(Y[test], preds_logreg, average='macro')
+        mean_logreg.append(score_logreg)
+        # Logistic regression default - No penalty
+        param = {'max_iter': 1000}
+        param['penalty'] = 'none'
+        logregnop = make_pipeline(StandardScaler(), LogisticRegression(**param))
+        logregnop.fit(X[train], Y[train])
+        preds_logregnop = logregnop.predict(X[test])
+        score_logregnop_w = f1_score(Y[test], preds_logregnop, average='weighted')
+        score_logregnop = f1_score(Y[test], preds_logregnop, average='macro')
+        mean_logrepnop.append(score_logregnop)
         # Logistic regression elasticnet
-        logreg1 = LogisticRegression(penalty='elasticnet',
-                                     solver='saga',
-                                     l1_ratio=.95,
-                                     max_iter=1000)
-        logreg1.fit(Xtrain_scaled, Y[train])
-        preds_logreg1 = logreg1.predict(Xtest_scaled)
-        score_logreg1 = f1_score(Y[test], preds_logreg1, average='weighted')
+        param['l1_ratio'] = 0.95
+        param['penalty'] = 'elasticnet'
+        param['solver'] = 'saga'
+        regel95 = make_pipeline(StandardScaler(), LogisticRegression(**param))
+        regel95.fit(X[train], Y[train])
+        preds_regel95 = regel95.predict(X[test])
+        score_regel95_w = f1_score(Y[test], preds_regel95, average='weighted')
+        score_regel95 = f1_score(Y[test], preds_regel95, average='macro')
+        mean_regel95.append(score_regel95)
         # Logistic regression elasticnet 0.85
-        logreg2 = LogisticRegression(penalty='elasticnet',
-                                     solver='saga',
-                                     l1_ratio=.85,
-                                     max_iter=1000)
-        logreg2.fit(Xtrain_scaled, Y[train])
-        preds_logreg2 = logreg2.predict(Xtest_scaled)
-        score_logreg2 = f1_score(Y[test], preds_logreg2, average='weighted')
+        param['l1_ratio'] = 0.85
+        regel85 = make_pipeline(StandardScaler(), LogisticRegression(**param))
+        regel85.fit(X[train], Y[train])
+        preds_regel85 = regel85.predict(X[test])
+        score_regel85_w = f1_score(Y[test], preds_regel85, average='weighted')
+        score_regel85 = f1_score(Y[test], preds_regel85, average='macro')
+        mean_regel85.append(score_regel85)
         # Gradient Boosting Classifier
         gbc = GradientBoostingClassifier().fit(X[train], Y[train])
         preds_gbc = gbc.predict(X[test])
-        score_gbc = f1_score(Y[test], preds_gbc, average='weighted')
+        score_gbc_w = f1_score(Y[test], preds_gbc, average='weighted')
+        score_gbc = f1_score(Y[test], preds_gbc, average='macro')
+        mean_gbc.append(score_gbc)
         print("FOLD: {}.".format(i))
-        print("{:<30} {:>35.4f}.".format("score rdmForest", score_clf))
+        print("{:<30} {:>35.4f}.".format("score rdmForest", score_rdc))
         print("{:<30} {:>35.4f}.".format("score GBC", score_gbc))
         print("{:<30} {:>35.4f}.".format("score SVC", score_svc))
         print("{:<30} {:>35.4f}.".format("score Linear SVC", score_lsvc))
         print("{:<30} {:>35.4f}.".format("score SGD", score_sgd))
         print("{:<30} {:>35.4f}.".format("score GNB", score_gnb))
-        str_sc = "score LogReg"
-        print("{:<30} {:>35.4f}.".format(str_sc, score_logreg))
-        str_sc1 = str_sc + " elasticnet"
-        print("{:<30} {:>35.4f}.".format(str_sc1, score_logreg1))
+        str_sc = "score LogReg max_iter=1000"
+        print("{:<40} {:>25.4f}.".format(str_sc, score_logreg))
+        str_sc1 = str_sc + " elasticnet 0.95"
+        print("{:<40} {:>25.4f}.".format(str_sc1, score_regel95))
         str_sc2 = str_sc + " elasticnet 0.85"
-        print("{:<30} {:>35.4f}.".format(str_sc2, score_logreg2))
+        print("{:<40} {:>25.4f}.".format(str_sc2, score_regel85))
         print('\n')
+    all_means = [mean_rdc, mean_svc, mean_lsvc, mean_sgd, mean_gnb]
+    all_means += [mean_logreg, mean_logrepnop]
+    all_means += [mean_regel95, mean_regel85, mean_gbc]
+    str_means = ['mean_rdc', 'mean_svc','mean_lsvc', 'mean_sgd', 'mean_gnb']
+    str_means += ['mean_logreg', 'mean_logrepnop']
+    str_means += ['mean_regel95', 'mean_regel85', 'mean_gbc']
+    print(("{:-^80}".format("GLOBAL MEANS")))
+    for list_mean, str_mean in zip(all_means, str_means):
+        print("{:<40} {:>15.3f}".format(str_mean, np.mean(list_mean)))
     return "End scores model"
 
 
@@ -446,15 +483,15 @@ def CreateXYFromScratch(dico_bdd,
 def PredsModel(X, Y, list_vect_page):
     gbc = GradientBoostingClassifier().fit(X, Y)
     for i, vect_page in enumerate(list_vect_page):
-        if i == 0:
-            matrix_input = vect_page
-        else:
-            matrix_input = np.concatenate((matrix_input, vect_page))
-    print("The shape of the matrix input: {}".format(matrix_input.shape))
+        if i == 0: matrix_input = vect_page
+        else: matrix_input = np.concatenate((matrix_input, vect_page))
+    str_prt = "The shape of the matrix input"
+    print("{:<35} {:>35}".format(str_prt, str(matrix_input.shape)))
     preds_gbc = gbc.predict_proba(matrix_input)
     preds = gbc.predict(matrix_input)
-    print("The variety of the predictions")
-    print([(x, list(preds).count(x)) for x in set(list(preds))])
+    print("{:^80}".format("The variety of the predictions"))
+    list_sh = [(x, list(preds).count(x)) for x in set(list(preds))]
+    print("{:^80}".format(str(list_sh)))
     return preds_gbc
 
 
@@ -580,13 +617,12 @@ def SelectBestTriplet(all_triplets):
     # Ultimately, we take the triplet with the best score
     all_triplets_scores.sort(key=itemgetter(0), reverse=True)
     best_triplet = all_triplets_scores[0]
-    print("The best triplet has the score: {:>40.2f}.".format(best_triplet[0]))
+    str_triplet = "The best triplet has the score"
+    print("{:<35} {:>35.2f}.".format(str_triplet, best_triplet[0]))
     print("{:-^80}".format("The score of each page"))
-    for sc, _ in best_triplet[1]:
-        print("{:40.4f}".format(sc))
+    for sc, _ in best_triplet[1]: print("{:40.4f}".format(sc))
     print("{:-^80}".format("The vectors page"))
-    for _, page in best_triplet[1]:
-        print("{:^40}".format(str(page)))
+    for _, page in best_triplet[1]: print("{:^40}".format(str(page)))
     return best_triplet
 
 
@@ -595,7 +631,6 @@ def GenerationOfAllTriplets(preds_gbc, list_vect_page):
     for line, vect_pg in zip(preds_gbc, list_vect_page):
         pages_with_score.append((round(max(line), 4), vect_pg))
     # Generation of every triplet of pages
-    # Eventually, the right formula
     all_triplets = [[p1, p2, p3] for i, p1 in enumerate(pages_with_score)
                     for j, p2 in enumerate(pages_with_score[i + 1:])
                     for p3 in pages_with_score[i + j +2:]]
@@ -686,8 +721,8 @@ def SelectBestTripletAllNumbers(all_triplets, global_mean_vect, global_vect_std)
         vect_var.append(variance_triplet)
     # Here, I need to standardize the variance
     mean_var, std_var = np.mean(vect_var, axis=0), np.std(vect_var, axis=0)
-    print("{:^40} {:>20.2f}".format("The mean var", mean_var))
-    print("{:^40} {:>20.2f}".format("The std of the var", std_var))
+    print("{:<40} {:>30.2f}".format("The mean var", mean_var))
+    print("{:<40} {:>30.2f}".format("The std of the var", std_var))
     if np.isclose(std_var, 0): std_var = 1
     norm_vect_var = (vect_var - mean_var) / std_var
     all_triplets_scores = []
@@ -698,7 +733,8 @@ def SelectBestTripletAllNumbers(all_triplets, global_mean_vect, global_vect_std)
     # Ultimately, we take the triplet with the best score
     all_triplets_scores.sort(key=itemgetter(0), reverse=True)
     best_triplet = all_triplets_scores[0]
-    print("The best triplet has the score: {:>40.2f}.".format(best_triplet[0]))
+    str_prt = "The best triplet has the score"
+    print("{:<50} {:>20.2f}.".format(str_prt, best_triplet[0]))
     print("{:-^80}".format("The score of each page"))
     for sc, _, _ in best_triplet[1]: print("{:40.4f}".format(sc))
     print("{:-^80}".format("The vectors page"))
@@ -769,7 +805,8 @@ for nb_arts in range(2, 5):
         sc_page = max(preds_gbc[0])
         list_score_label_short_vect.append((sc_page, label_pred, short_vect_pg))
     big_list_sc_label_vectsh += list_score_label_short_vect
-    print("Duration model {} arts: {:.2f}".format(nb_arts, time.time() - t1))
+    str_prt = "Duration model {} arts".format(nb_arts)
+    print("{:<35} {:>35.2f}".format(str_prt, time.time() - t1))
     print("{:-^80}".format(""))
 
 t2 = time.time()
@@ -792,20 +829,53 @@ for k in range(10):
             print("The vect_page: {}".format(vect_page))
         list_ids_found.append(ids_found)
         print("The ids of the page {} result: {}".format(i, ids_found[0][1]))
-print("Duration computation scores triplet: {:.2f}".format(time.time() - t2))
-print("{:-^80}".format("TOTAL DURATION - {:.2f}".format(time.time() - start_time)))
+str_prt = "Duration computation scores triplet"
+print("{:<50} {:>20.2f}".format(str_prt, time.time() - t2))
+tot_dur = time.time() - start_time
+print("{:-^80}".format("TOTAL DURATION - {:.2f}".format(tot_dur)))
 
 
 #%%
 
 # GlobalValidateModel(dico_bdd, list_mdp_data, 3, 20)
 # print(TuningHyperParamGBC(dico_bdd, dict_arts, list_mdp_data, 4, 30, list_features))
-len_sample, nb_arts = 25, 3
+len_sample, nb_arts, min_nb = 25, 3, 50
 final_obj = GetSelectionOfArticles(dico_bdd, nb_arts, len_sample)
 list_vect_page = CreationListVectorsPage(final_obj, dict_arts, list_features)
 # Now, I train the model. Well, first the matrices
 args_cr = [dico_bdd, dict_arts, list_mdp_data]
-X, Y, dict_labels = CreateXYFromScratch(*args_cr, 3, 17, list_features)
+X, Y, dict_labels = CreateXYFromScratch(*args_cr, 2, min_nb, list_features)
+# I should also have the number of 
+
+dict_nblabels = {x: list(Y).count(x) for x in set(Y)}
+# print("The data labelled", dict_nblabels)
+
+# Il faudrait enlever les classes où il y a moins de X représentants
+init = False
+for i, (line_X, elt_Y) in enumerate(zip(X, Y)):
+    if i == 0:
+        if dict_nblabels[elt_Y] > min_nb:
+            Yn = [elt_Y]
+            Xn = np.array(line_X, ndmin=2)
+            init = True
+    else:
+        if dict_nblabels[elt_Y] > min_nb:
+            if init is True:
+                Yn.append(elt_Y)
+                Xn = np.concatenate((Xn, np.array(line_X, ndmin=2)), axis=0)
+            else:
+                Yn = [elt_Y]
+                Xn = line_X
+                init = True
+Yn = np.array(Yn)
+dict_nblabelsn = {x: list(Yn).count(x) for x in set(Yn)}
+print("The data labelled", dict_nblabelsn)
+
+TrainValidateModel(Xn, Yn)
+
+
+#%%
+
 preds_gbc = PredsModel(X, Y, list_vect_page)
 # Use of the dict_labels to have the real modules
 rep_data = '/Users/baptistehessel/Documents/DAJ/MEP/ArticlesOptions/'
