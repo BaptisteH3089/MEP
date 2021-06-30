@@ -184,7 +184,8 @@ list_features = ['nbSign', 'nbBlock', 'abstract', 'syn']
 list_features += ['exergue', 'title', 'secTitle', 'supTitle']
 list_features += ['subTitle', 'nbPhoto', 'aireImg', 'aireTot']
 list_features += ['petittitre', 'quest_rep', 'intertitre']
-# On sélectionne le nb d'articles qu'on veut
+# On sélectionne le nb d'articles qu'on veut avec un nb min de pages pour
+# entraîner le modèle
 pages_p_art = SelectionModelesPages(list_mdp_data, 6, 15)
 
 all_durations, all_means, all_mins = [], [], []
