@@ -5,6 +5,7 @@ from flask_restful import reqparse, Api, Resource
 from logging.handlers import RotatingFileHandler
 import configparser
 import argparse
+import zipfile
 import logging
 import pickle
 import time
@@ -92,6 +93,36 @@ try:
 except Exception as e:
     logger.error(e, exc_info=True)
     logger.debug('Path to dico_arts: {}'.format(path_customer + 'dico_arts'))
+# The Gradient Boosting Classifier trained with pages with 2 articles
+try:
+    with open(path_customer + 'gbc2', 'rb') as file:
+        gbc2 = pickle.load(file)
+except Exception as e:
+    logger.error(e, exc_info=True)
+    logger.debug('Path to gbc2: {}'.format(path_customer + 'gbc2'))
+# The Gradient Boosting Classifier trained with pages with 3 articles
+try:
+    with open(path_customer + 'gbc3', 'rb') as file:
+        gbc3 = pickle.load(file)
+except Exception as e:
+    logger.error(e, exc_info=True)
+    logger.debug('Path to gbc3: {}'.format(path_customer + 'gbc3'))
+# The Gradient Boosting Classifier trained with pages with 4 articles
+try:
+    with open(path_customer + 'gbc4', 'rb') as file:
+        gbc4 = pickle.load(file)
+except Exception as e:
+    logger.error(e, exc_info=True)
+    logger.debug('Path to gbc4: {}'.format(path_customer + 'gbc4'))
+# The Gradient Boosting Classifier trained with pages with 5 articles
+try:
+    with open(path_customer + 'gbc5', 'rb') as file:
+        gbc5 = pickle.load(file)
+except Exception as e:
+    logger.error(e, exc_info=True)
+    logger.debug('Path to gbc5: {}'.format(path_customer + 'gbc5'))
+# Dictionary with all the models
+dict_models = {2: gbc2, 3: gbc3, 4: gbc4, 5: gbc5}
 
 
 class GetLayout(Resource):
@@ -107,18 +138,26 @@ class GetLayout(Resource):
         t0 = time.time()
         args = parser.parse_args()
         try:
-            logger.info('file_in: {}'.format(args['file_in']))
-            logger.info('file_out: {}'.format(args['file_out']))
-            directories = os.listdir(file_in)
+            file_in = args['file_in']
+            file_out = args['file_out']
+            logger.info('file_in: {}'.format(file_in))
+            logger.info('file_out: {}'.format(file_out))
+            dir_file_in = os.path.dirname(file_in)
+            basename_file_in = os.path.basename(file_in)
+            with zipfile.ZipFile(file_in, "r") as z:
+                z.extractall(dir_file_in + "/input")
+            path_data_input = dir_file_in + '/input/' + basename_file_in[:-4]
+            print(f"path_data_input: {path_data_input}")
+            directories = os.listdir(path_data_input)
+            print(f"directories: {directories}")
             if 'pageTemplate' in directories:
                 print("Case with layout input.")
-                args_lay = [dico_bdd, list_mdp_data, args['file_in']]
-                args_lay += [args['file_out']]
+                args_lay = [dico_bdd, list_mdp_data, file_in, file_out]
                 propositions.ExtractAndComputeProposals(*args_lay)
             else:
                 print("Case without layout input.")
-                args_nolay = [file_in, file_out, dico_bdd, dict_arts]
-                args_nolay += [list_mdp_data]
+                args_nolay = [path_data_input, file_out, dico_bdd, dict_arts]
+                args_nolay += [list_mdp_data, dict_models]
                 without_layout.FinalResultsMethodNoLayout(*args_nolay)
             logger.info('End of GET')
         except Exception as e:
