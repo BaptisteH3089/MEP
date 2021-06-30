@@ -312,7 +312,7 @@ def TrouveMDPSim(liste_tuple_mdp, mdp_input):
         stc_exc = "No correspondance found for that MDP:\n{}\n in the BDD."
         raise MyException(stc_exc.format(mdp_input))
     mdp_trouve.sort(key=itemgetter(0), reverse=True)
-    print('The mdp found in TrouveMDPSim: \n{}\n'.format(mdp_trouve[0][1]))
+    # print('The mdp found in TrouveMDPSim: \n{}\n'.format(mdp_trouve[0][1]))
     return mdp_trouve
 
 
