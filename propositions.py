@@ -297,8 +297,15 @@ def TrouveMDPSim(liste_tuple_mdp, mdp_input):
         nb_correspondances = 0
         for i in range(n):
             for j in range(n):
-                if np.allclose(mdp[j], mdp_input[i], atol=10):
-                    nb_correspondances += 1
+                try:
+                    if np.allclose(mdp[j], mdp_input[i], atol=10):
+                        nb_correspondances += 1
+                except Exception as e:
+                    str_exc = (f"An exception occurs with np.allclose: {e}\n"
+                               f"mdp: {mdp}\n"
+                               f"j: {j}, i: {i}"
+                               f"mdp_input: {mdp_input}")
+                    print(str_exc)
         if nb_correspondances == n:
             mdp_trouve.append((nb_pages, mdp, liste_ids))
     if len(mdp_trouve) == 0:
@@ -465,13 +472,6 @@ def CreateListeProposalsPage(dict_global_results, mdp_INPUT):
                         dict_one_res[tuple_emp] = (id_art, id_carton)
                     liste_page_created.append(dict_one_res)
     return liste_page_created
-
-
-import numpy as np
-a = np.array([[1, 2, 3]])
-b = np.concatenate((a, a), axis=1)
-
-
 
 
 def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features):

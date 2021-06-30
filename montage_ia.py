@@ -8,7 +8,9 @@ import argparse
 import logging
 import pickle
 import time
-import propositions # script with the code used for the requests
+import os
+import propositions # script with the code used for the requests with layout
+import without_layout # script for the case with no layout input
 
 
 # Class to write some personalized exceptions
@@ -83,6 +85,13 @@ try:
 except Exception as e:
     logger.error(e, exc_info=True)
     logger.debug('Path to list_mdp: {}'.format(path_customer + 'list_mdp'))
+# The dict {ida: dicoa, ...}
+try:
+    with open(path_customer + 'dico_arts', 'rb') as file:
+        dict_arts = pickle.load(file)
+except Exception as e:
+    logger.error(e, exc_info=True)
+    logger.debug('Path to dico_arts: {}'.format(path_customer + 'dico_arts'))
 
 
 class GetLayout(Resource):
@@ -100,10 +109,17 @@ class GetLayout(Resource):
         try:
             logger.info('file_in: {}'.format(args['file_in']))
             logger.info('file_out: {}'.format(args['file_out']))
-            propositions.ExtractAndComputeProposals(dico_bdd,
-                                                    list_mdp_data,
-                                                    args['file_in'],
-                                                    args['file_out'])
+            directories = os.listdir(file_in)
+            if 'pageTemplate' in directories:
+                print("Case with layout input.")
+                args_lay = [dico_bdd, list_mdp_data, args['file_in']]
+                args_lay += [args['file_out']]
+                propositions.ExtractAndComputeProposals(*args_lay)
+            else:
+                print("Case without layout input.")
+                args_nolay = [file_in, file_out, dico_bdd, dict_arts]
+                args_nolay += [list_mdp_data]
+                without_layout.FinalResultsMethodNoLayout(*args_nolay)
             logger.info('End of GET')
         except Exception as e:
             logger.error(e, exc_info=True)
