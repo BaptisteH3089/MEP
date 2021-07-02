@@ -35,7 +35,8 @@ parser.add_argument('--grid_search',
                     default=False)
 args = parser.parse_args()
 
-print(f"{args.selected_models}")
+print("args.selected_models", args.selected_models)
+
 if type(args.selected_models) is int:
     args.selected_models = [args.selected_models]
 
@@ -97,13 +98,12 @@ if dict_model[2] is True:
     # The model with the layouts with 2 articles is trained with 1136 and 
     # there are 24 different classes or layouts
     list_dec = [(x, list(Y).count(x)) for x in set(list(Y))]
-    for label, nbelts in list_dec:
-        print(f"{label:<6} {nbelts:>6}")
     X, Y = RemovingLabels(X, Y, 10)
     list_dec = [(x, list(Y).count(x)) for x in set(list(Y))]
     print("{:-^80}".format("Cleaner Objects"))
-    for label, nbelts in list_dec:
-        print(f"{label:<6} {nbelts:>6}")
+    for k, (label, nbelts) in enumerate(list_dec):
+        print(f"{k:<6} {nbelts:>6}")
+    print(f"Total number of pages: {sum((nb for _, nb in list_dec)):->15}")
 
     ##### CROSS-VALIDATION SCORE #####
     if args.cross_val:
@@ -152,13 +152,12 @@ if dict_model[3]:
     X, Y, dict_labels = without_layout.CreateXYFromScratch(*args_cr, list_features)
     # Only 141 pages in our data for 7 labels
     list_dec = [(x, list(Y).count(x)) for x in set(list(Y))]
-    for label, nbelts in list_dec:
-        print(f"{label:<6} {nbelts:>6}")
     X, Y = RemovingLabels(X, Y, 10)
     list_dec = [(x, list(Y).count(x)) for x in set(list(Y))]
     print("{:-^80}".format("Cleaner Objects"))
-    for label, nbelts in list_dec:
-        print(f"{label:<6} {nbelts:>6}")
+    for k, (label, nbelts) in enumerate(list_dec):
+        print(f"{k:<6} {nbelts:>6}")
+    print(f"Total number of pages: {sum((nb for _, nb in list_dec)):->15}")
     
     ##### CROSS-VALIDATION SCORE #####
     if args.cross_val:
@@ -206,13 +205,12 @@ if dict_model[4]:
     X, Y, dict_labels = without_layout.CreateXYFromScratch(*args_cr, list_features)
     # Only 274 pages in our data for 16 labels
     list_dec = [(x, list(Y).count(x)) for x in set(list(Y))]
-    for label, nbelts in list_dec:
-        print(f"{label:<6} {nbelts:>6}")
     X, Y = RemovingLabels(X, Y, 10)
     list_dec = [(x, list(Y).count(x)) for x in set(list(Y))]
     print("{:-^80}".format("Cleaner Objects"))
-    for label, nbelts in list_dec:
-        print(f"{label:<6} {nbelts:>6}")
+    for k, (label, nbelts) in enumerate(list_dec):
+        print(f"{k:<6} {nbelts:>6}")
+    print(f"Total number of pages: {sum((nb for _, nb in list_dec)):->15}")
 
     ##### CROSS-VALIDATION SCORE #####
     if args.cross_val:
@@ -260,24 +258,24 @@ if dict_model[5]:
     X, Y, dict_labels = without_layout.CreateXYFromScratch(*args_cr, list_features)
     # Only 88 pages in our data for 5 labels
     list_dec = [(x, list(Y).count(x)) for x in set(list(Y))]
-    for label, nbelts in list_dec:
-        print(f"{label:<6} {nbelts:>6}")
     X, Y = RemovingLabels(X, Y, 10)
     list_dec = [(x, list(Y).count(x)) for x in set(list(Y))]
     print("{:-^80}".format("Cleaner Objects"))
-    for label, nbelts in list_dec:
-        print(f"{label:<6} {nbelts:>6}")
+    for k, (label, nbelts) in enumerate(list_dec):
+        print(f"{k:<6} {nbelts:>6}")
+    print(f"Total number of pages: {sum((nb for _, nb in list_dec)):->15}")
 
     ##### CROSS-VALIDATION SCORE #####
-    mean_gbc5 = []
-    ss = ShuffleSplit(n_splits=5)
-    for k, (train, test) in enumerate(ss.split(X, Y)):
-        print(f"FOLD [{k}]")
-        gbc_cv = GradientBoostingClassifier().fit(X[train], Y[train])
-        preds_gbc = gbc_cv.predict(X[test])
-        score_gbc = f1_score(Y[test], preds_gbc, average='macro')
-        mean_gbc5.append(score_gbc)
-    print(f"The cross-val score: {np.mean(mean_gbc5)}")
+    if args.cross_val:
+        mean_gbc5 = []
+        ss = ShuffleSplit(n_splits=5)
+        for k, (train, test) in enumerate(ss.split(X, Y)):
+            print(f"FOLD [{k}]")
+            gbc_cv = GradientBoostingClassifier().fit(X[train], Y[train])
+            preds_gbc = gbc_cv.predict(X[test])
+            score_gbc = f1_score(Y[test], preds_gbc, average='macro')
+            mean_gbc5.append(score_gbc)
+        print(f"The cross-val score: {np.mean(mean_gbc5)}")
 
     ##### TUNING PARAMETERS #####
     if args.grid_search:
@@ -290,7 +288,7 @@ if dict_model[5]:
         print(f"best score: {clf.best_score_}")
 
     #### SAVE MODEL #####
-    if save is True:
+    if args.save_model:
         if args.grid_search:
             gbc5 = GradientBoostingClassifier(**clf.best_params_).fit(X, Y)
             with open(path_cm + 'gbc5', 'wb') as f: pickle.dump(gbc5, f)
