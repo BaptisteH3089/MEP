@@ -493,8 +493,6 @@ def MethodeNaive(mdp_ref, X_nbImg, X_input, dico_id_artv, ind_features,
             print("L'aire des imgs de ce MDP : {}".format(aire_img_carton))
             bornes = (.5 * aire_img_carton, 1.5 * aire_img_carton)
             print("bornes : {} et {}".format(*bornes))
-            for artv in dico_id_artv.values():
-                print("aire img art : {}".format(artv[0][ind_features[2]]))
             liste_art_poss += FiltreArticles(*args_filt)
         except Exception as e:
             first_item = list(dico_id_artv.items())[0]
