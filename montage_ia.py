@@ -127,12 +127,14 @@ dict_models = {2: gbc2, 3: gbc3, 4: gbc4, 5: gbc5}
 
 class GetLayout(Resource):
     """
+
     - Read the xml files in the archive located in the directory "file_in"
     - Extraction of the propositions of page that we can create with the
     articles input and the page layout input
     - Create a xml file in the directory "file_out" with several propositions
     of pages. In fact we simply associate some ids of articles with some ids
     of cartons.
+
     """
     def get(self):
         t0 = time.time()
@@ -142,20 +144,31 @@ class GetLayout(Resource):
             file_out = args['file_out']
             logger.info('file_in: {}'.format(file_in))
             logger.info('file_out: {}'.format(file_out))
-            dir_file_in = os.path.dirname(file_in)
-            basename_file_in = os.path.basename(file_in)
+            try:
+                dir_file_in = os.path.dirname(file_in)
+            except Exception as e:
+                str_exc = (f"Error with os.path.dirname(): {e}\n"
+                           "file_in: {file_in}")
+                raise MyException(str_exc)
+            try:
+                basename_file_in = os.path.basename(file_in)
+            except Exception as e:
+                str_exc = (f"Error with os.path.basename(): {e}\n"
+                           "file_in: {file_in}")
+                raise MyException(str_exc)
             with zipfile.ZipFile(file_in, "r") as z:
                 z.extractall(dir_file_in + "/input")
+            # We remove the .zip in the basename_file_in
             path_data_input = dir_file_in + '/input/' + basename_file_in[:-4]
             print(f"path_data_input: {path_data_input}")
             directories = os.listdir(path_data_input)
             print(f"directories: {directories}")
             if 'pageTemplate' in directories:
-                print("Case with layout input.")
-                args_lay = [dico_bdd, list_mdp_data, file_in, file_out]
+                print("{:-^80}".format("| Case with layout input |"))
+                args_lay = [dico_bdd, list_mdp_data, path_data_input, file_out]
                 propositions.ExtractAndComputeProposals(*args_lay)
             else:
-                print("Case without layout input.")
+                print("{:-^80}".format("| Case without layout input |"))
                 args_nolay = [path_data_input, file_out, dico_bdd, dict_arts]
                 args_nolay += [list_mdp_data, dict_models]
                 without_layout.FinalResultsMethodNoLayout(*args_nolay)
@@ -169,6 +182,7 @@ class AddPage(Resource):
     """
     Adds the information of a published page in the different files of the
     database.
+    Unused for the moment.
     """
     def post(self):
         t0 = time.time()
