@@ -34,18 +34,18 @@ def ExtractDicoArtInput(file_path):
     par cette fonction.
     PLus de clef 'nbCol'.
     Renvoie un dico avec comme clefs les quelques features voulues. Exemple :
-        dico_vector_input = {'aireImg': zzz,
-                             'melodyId': zzz,
-                             'nbPhoto': zzz,
-                             'nbBlock': zzz,
-                             'nbSign': zzz,
-                             'supTitle': zzz,
-                             'secTitle': zzz,
-                             'subTitle': zzz,
-                             'title': zzz,
-                             'abstract': zzz,
-                             'exergue': zzz,
-                             'syn': zzz}
+        dico_vector_input = {'aireImg': ...,
+                             'melodyId': ...,
+                             'nbPhoto': ...,
+                             'nbBlock': ...,
+                             'nbSign': ...,
+                             'supTitle': ...,
+                             'secTitle': ...,
+                             'subTitle': ...,
+                             'title': ...,
+                             'abstract': ...,
+                             'exergue': ...,
+                             'syn': ...}
     """
     with open(file_path, "r", encoding='utf-8') as file:
         try:
@@ -501,7 +501,7 @@ def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features):
         for i in range(len(poids)):
             norm_weights += [poids[i]] * length_vect
         norm_weights = norm_weights / sum(norm_weights)
-        print('The norm_weights obtained: {}'.format(norm_weights))
+        # print('The norm_weights obtained: {}'.format(norm_weights))
     except Exception as e:
         str_exc = "Error with the weights: {}\n".format(e)
         str_exc += "dico_id_artv: {}\n".format(dico_id_artv)
@@ -573,9 +573,10 @@ def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features):
         """
         weighted_list_triplets.append((score_total, score_far, triplet))
     print("{:-^75}".format("WEIGHTED LIST TRIPLETS"))
+    print("{:<15} {:^15} {:>25}".format("score total", "score far", "triplet"))
     for i, (sc_tot, sc_far, triplet) in enumerate(weighted_list_triplets):
         print("{:<15} {:^15} {:>25}".format(str(sc_tot), str(sc_far), str(triplet)))
-        if i == 5: break
+        if i == 3: break
     print("{:-^75}".format("END WEIGHTED LIST TRIPLETS"))
     # triplet = [(88176, (32234, 28797)), (sc, (id, id)), (sc, (id, id))]
     f = lambda x: (x[0] - x[1] * 1500, x[2])
@@ -587,56 +588,61 @@ def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features):
     return best_prop[1]
 
 
-def ExtractAndComputeProposals(dico_bdd, liste_mdp_bdd, file_in, file_out):
+def ExtractAndComputeProposals(dico_bdd,
+                               liste_mdp_bdd,
+                               path_data_input,
+                               file_out,
+                               verbose=2):
     """
-    'file_in' correspond à une directory avec 3 dossiers correspondants aux
-    articles, mdp et rubriques.
-    Fonction globale qui sera importée dans le webservice montage_ia
-    - Dézippe archive xml
-    - Crée des listes de dictionnaires avec les articles et les MDP
-    - Détermine les pages possibles avec ces articles et ces MDP en utilisant
-    les différentes méthodes
-        - filtre des possibilités avec la méthode naïve
-        - placement des articles avec la méthode MLV
-    - Crée un fichier xml avec les différentes possibilités de placements
-    d'articles. Dans les fichiers xml, on associe des id de MDP et des id
-    d'articles et leur position (x, y).
+
+    Parameters
+    ----------
+    dico_bdd : dictionary
+        DESCRIPTION.
+    liste_mdp_bdd : list of tuples
+        DESCRIPTION.
+    path_data_input : str
+        Corresponds to a directory with 2 or 3 folders which contain the xml
+        files with the articles, the rubric and the layout.
+    file_out : str
+        The absolute path of the file that will be created by this function
+        with the results obtained.
+
+    Returns
+    -------
+    str
+        Indicates that everything went well.
+
+    Steps of the function:
+        - Creates the lists of dictionaries with the articles and the layout.
+        - Determine the pages that can be made with these articles and that 
+        layout.
+        - Create an xml file with the results. The output file associates ids
+        of articles with ids of modules.
+
     """
-    # La liste des features qui seront associées aux vecteurs articles
-    # ON ENLEVE 'nbCol'
-    list_of_features = ['nbSign', 'nbBlock', 'abstract', 'syn']
-    list_of_features += ['exergue', 'title', 'secTitle', 'supTitle']
-    list_of_features += ['subTitle', 'nbPhoto', 'aireImg', 'aireTot']
-    # Obtention des indices de nbSign, nbPhoto, aireImg pour FiltreArticles
+    # The list of features of the vectors article.
+    # The compulsory features are: aireImg and aireTot.
+    list_features = ['nbSign', 'nbBlock', 'abstract', 'syn']
+    list_features += ['exergue', 'title', 'secTitle', 'supTitle']
+    list_features += ['subTitle', 'nbPhoto', 'aireImg', 'aireTot']
+    # Indexes of nbSign, nbPhoto, aireImg for the function FiltreArticles.
     list_to_index = ['nbSign', 'aireTot', 'aireImg']
-    ind_features = [list_of_features.index(x) for x in list_to_index]
-    # Isolation répertoire du fichier file_in
-    try:
-        dir_file_in = os.path.dirname(file_in)
-    except Exception as e:
-        str_exc = "Error with os.path.dirname(): {}\n".format(e)
-        str_exc += "file_in: {}".format(file_in)
-        raise MyException(str_exc)
-    # Isolation nom du fichier file_in
-    try:
-        basename_file_in = os.path.basename(file_in)
-    except Exception as e:
-        str_exc = "Error with os.path.basename(): {}\n".format(e)
-        str_exc += "file_in: {}".format(file_in)
-        raise MyException(str_exc)
-    # On dézippe l'archive et on crée un dossier input avec les xml dézippés
-    with zipfile.ZipFile(file_in, "r") as z:
-        z.extractall(dir_file_in + "/input")
-    path_data_input = dir_file_in + '/input/' + basename_file_in[:-4]
+    ind_features = [list_features.index(x) for x in list_to_index]
     print("The path_data_input: {}".format(path_data_input))
     # On met les données extraites dans des listes de dico
     list_arts_INPUT, mdp_INPUT, rub_INPUT = ExtrationDataInput(path_data_input)
     # Affichage MDP input
-    print("{:-^75}".format("MDP-INPUT"))
+    print("{:-^75}".format("MDP INPUT"))
     for id_mdp, dict_mdp_input in mdp_INPUT.items():
         print("id mdp: {:<25}".format(id_mdp))
         for key, val in dict_mdp_input.items():
-            print("id carton : {} \n{}\n".format(key, val))
+            print("id carton : {}".format(key))
+            for dict_block in val['blocs']:
+                print("block: ", dict_block)
+            for key, value in val.items():
+                if key != 'blocs':
+                    print(f"{key}: {value}")
     print("{:-^75}".format("END-INPUT"))
     # Attribution sommaire (pour l'instant) d'une rubrique aux articles
     list_rub = rub_INPUT
@@ -647,24 +653,27 @@ def ExtractAndComputeProposals(dico_bdd, liste_mdp_bdd, file_in, file_out):
         # There is only one rubric in fact
         dico_arts_rub_INPUT[rub_picked].append(dict_art)
     # Vérification du dico dico_arts_rub_INPUT
-    print("{:-^75}".format("dico_arts_rub_INPUT"))
-    for rub, liste_art in dico_arts_rub_INPUT.items():
-        print(rub)
-        for art in liste_art:
-            list_prt = [elt for elt in art.items() if elt[0] is not 'blocs']
-            print("Les blocs : {}".format(art['blocs']))
-            print("Autre caract : \n{}\n".format(list_prt))
-    print("{:-^75}".format("END dico_arts_rub_INPUT"))
+    if verbose > 2:
+        print("{:-^75}".format("dico_arts_rub_INPUT"))
+        for rub, liste_art in dico_arts_rub_INPUT.items():
+            print(rub)
+            for art in liste_art:
+                list_prt = [elt for elt in art.items() if elt[0] is not 'blocs']
+                print("Les blocs : {}".format(art['blocs']))
+                print("Autre caract : \n{}\n".format(list_prt))
+        print("{:-^75}".format("END dico_arts_rub_INPUT"))
     # Il faut transformer les liste_art en matrice X_INPUT et dico_id_artv
     dico_arts_rub_X = {}
     for rub, liste_art in dico_arts_rub_INPUT.items():
-        big_x, dico_id_artv = GetXInput(liste_art, list_of_features)
+        big_x, dico_id_artv = GetXInput(liste_art, list_features)
         dico_arts_rub_X[rub] = (big_x, dico_id_artv)
     # L'obtention du dico_arts_rub_X est une étape important
     # Visualisation des résultats
     print("{:-^75}".format("dico_arts_rub_X"))
     for rub, (mat_x, dico_art) in dico_arts_rub_X.items():
         print("La rubrique : {}".format(rub))
+        nb_ft = len(list_features)
+        print("The features: " + ("{} " * nb_ft).format(*list_features))
         str_print = "The matrix X associated to all articles INPUT:\n{}\n"
         print(str_print.format(mat_x))
         print("Le dico de l'article : ")
@@ -737,7 +746,7 @@ def ExtractAndComputeProposals(dico_bdd, liste_mdp_bdd, file_in, file_out):
             if correspondance == True:
                 print("{:-^75}".format("CORRESPONDANCE FOUND"))
                 args_mlv = [dico_bdd, liste_ids_found, mdp_ref, X_input]
-                args_mlv += [dico_id_artv, list_of_features]
+                args_mlv += [dico_id_artv, list_features]
                 try:
                     dico_possi_mlv = methods.MethodeMLV(*args_mlv)
                 except Exception as e:
