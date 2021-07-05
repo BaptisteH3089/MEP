@@ -82,8 +82,9 @@ def CreationValidationMatrixes(list_ids_layout,
                     Y.append(id_layout)
                 except Exception as e:
                     print(e)
-                    print(dico_bdd[id_page]['dico_page']['articles'].keys())
+                    print(dico_bdd[id_page]['articles'].keys())
     return X, np.array(Y)
+
 
 list_ids_layout = dict_nbmodules[3]
 X, Y = CreationValidationMatrixes(list_ids_layout, dict_layouts, dict_pages,
