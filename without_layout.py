@@ -14,6 +14,7 @@ import os
 os.chdir('/Users/baptistehessel/Documents/DAJ/MEP/montageIA/bin/')
 import propositions
 import methods
+import recover_true_layout
 
 path_customer = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM/'
 
@@ -26,6 +27,24 @@ with open(path_customer + 'dico_arts', 'rb') as file:
 # The list of triplet (nb_pages_using_mdp, array_mdp, list_ids)
 with open(path_customer + 'list_mdp', 'rb') as file:
     list_mdp_data = pickle.load(file)
+# The dictionary with the gradient boosting classifiers
+with open(path_customer + 'gbc2', 'rb') as file:
+    gbc2 = pickle.load(file)
+with open(path_customer + 'gbc3', 'rb') as file:
+    gbc3 = pickle.load(file)
+with open(path_customer + 'gbc4', 'rb') as file:
+    gbc4 = pickle.load(file)
+with open(path_customer + 'gbc5', 'rb') as file:
+    gbc5 = pickle.load(file)
+# Loading dictionary with all the pages
+with open(path_customer + 'dict_page_array', 'rb') as f:
+    dict_page_array = pickle.load(f)
+# Loading dictionary with all the pages
+with open(path_customer + 'dict_layouts_small', 'rb') as f:
+    dict_layouts = pickle.load(f)
+
+
+dict_gbc = {2: gbc2, 3: gbc3, 4: gbc4, 5: gbc5}
 
 
 def ConstraintArea(all_ntuple):
@@ -88,8 +107,8 @@ def ConstraintScore(all_ntuple):
 def SelectionPagesNarts(dico_bdd, nb_arts):
     dico_narts = {}
     for key in dico_bdd.keys():
-        if len(dico_bdd[key]['dico_page']['articles']) == nb_arts:
-            dico_narts[key] = dico_bdd[key]['dico_page']['articles']
+        if len(dico_bdd[key]['articles']) == nb_arts:
+            dico_narts[key] = dico_bdd[key]['articles']
     return dico_narts
 
 
@@ -299,8 +318,11 @@ def CreationListDictArt(rep_data):
     dict_arts_input = {}
     for file_path in Path(rep_data).glob('./**/*'):
         if file_path.suffix == '.xml':
-            dict_art = propositions.ExtractDicoArtInput(file_path)
-            dict_arts_input[dict_art['melodyId']] = dict_art
+            try:
+                dict_art = propositions.ExtractDicoArtInput(file_path)
+                dict_arts_input[dict_art['melodyId']] = dict_art
+            except Exception as e:
+                print(f"An error with an article input: {e}")
     return dict_arts_input
 
 
@@ -606,7 +628,7 @@ def ProposalsWithoutGivenLayout(file_in,
                                 dico_bdd,
                                 dict_arts,
                                 list_mdp_data,
-                                dict_models):
+                                dict_gbc):
     """
     Parameters
     ----------
@@ -621,7 +643,7 @@ def ProposalsWithoutGivenLayout(file_in,
         {id_article: dict_art}.
     list_mdp_data : list
         [(nb_pages, array_mdp, list_ids), ...]
-    dict_models : dictionary of gradient boosting classifier
+    dict_gbc : dictionary of gradient boosting classifier
         {2: gbc2, 3: gbc3, 4:gbc4}
 
     Returns
@@ -669,7 +691,7 @@ def ProposalsWithoutGivenLayout(file_in,
         args_cr = [dico_bdd, dict_arts, list_mdp_data, nb_arts, nb_pgmin]
         X, Y, dict_labels = CreateXYFromScratch(*args_cr, list_features)
         t_model = time.time()
-        preds_gbc = PredsModel(X, Y, list_long_vect_page, dict_models[nb_arts])
+        preds_gbc = PredsModel(X, Y, list_long_vect_page, dict_gbc[nb_arts])
         d_mod = time.time() - t_model
         str_prt = f"Duration model {nb_arts} articles"
         print(f"{str_prt:<35} {d_mod:*^12.2f} sec.")
@@ -801,9 +823,12 @@ def FindLocationArticleInLayout(dico_bdd,
             poss = [list_ids, (list_ids[1], list_ids[0])]
         elif len(list_ids) == 3:
             seti = set([0, 1, 2])
-            poss = [(id1, id2, id3) for j, id1 in enumerate(list_ids)
-                    for k, id2 in enumerate(list_ids[:j] + list_ids[j + 1:])
-                    for id3 in [poss[p] for p in list(seti - set([k, j]))]]
+            poss = []
+            for j, id1 in enumerate(list_ids):
+                for k, id2 in enumerate(list_ids[:j] + list_ids[j + 1:]):
+                    l3 = [list_ids[p] for p in list(seti - set([k, j]))]
+                    for id3 in l3:
+                        poss.append((id1, id2, id3))
         elif len(list_ids) == 4:
             set_ind = set([0, 1, 2, 3])
             poss = []
@@ -847,7 +872,11 @@ def CreateXmlOutNoLayout(list_xmlout, file_out):
     Parameters
     ----------
     list_xmlout : list of dictionaries
-        [(x, y, w, h): (id_art_1, ...), ...].
+        [
+        {(x, y, w, h): (id_art_1, ...), ..., idLayout: id or "None"},
+        {...},
+         ...
+         ].
     file_out : str
         path/to/file/out.xml.
 
@@ -858,13 +887,15 @@ def CreateXmlOutNoLayout(list_xmlout, file_out):
     PagesLayout = ET.Element("PagesLayout")
     for i, dico_page_result in enumerate(list_xmlout):
         PageLayout = ET.SubElement(PagesLayout, "PageLayout", name=str(i))
+        PageLayout.set("idLayout", dico_page_result['idLayout'])
         for tuple_emp, ida in dico_page_result.items():
-            Module = ET.SubElement(PageLayout, "Module")
-            Module.set("x", str(tuple_emp[0]))
-            Module.set("y", str(tuple_emp[1]))
-            Module.set("width", str(tuple_emp[2]))
-            Module.set("height", str(tuple_emp[3]))
-            Module.set("id_article", str(ida))
+            if tuple_emp != "idLayout":
+                Module = ET.SubElement(PageLayout, "Module")
+                Module.set("x", str(tuple_emp[0]))
+                Module.set("y", str(tuple_emp[1]))
+                Module.set("width", str(tuple_emp[2]))
+                Module.set("height", str(tuple_emp[3]))
+                Module.set("id_article", str(ida))
     tree = ET.ElementTree(PagesLayout)
     tree.write(file_out, encoding="UTF-8")
     return True
@@ -875,7 +906,8 @@ def FinalResultsMethodNoLayout(file_in,
                                dico_bdd,
                                dict_arts,
                                list_mdp_data,
-                               dict_models):
+                               dict_gbc,
+                               dict_layouts):
     """
 
     Parameters
@@ -890,6 +922,15 @@ def FinalResultsMethodNoLayout(file_in,
         The dictionary of the form {id_art: dico_art, ...}.
     list_mdp_data : list
         A list of tuple [(nb_arts, array_mdp, list_ids), ...].
+    dict_gbc : dictionary 
+        Dictionary with the gradient boosting classifier of the form
+        {2: GBC2, 3: GBC3, ...}
+    dict_layouts : dictionary
+        A dictionary of the form:
+            {id_layout: {'nameTemplate': str,
+                         'cartons': list,
+                         'id_pages': list,
+                         'array': np.array}, ...}
 
     Returns
     -------
@@ -898,7 +939,7 @@ def FinalResultsMethodNoLayout(file_in,
 
     """
     start_time = time.time()
-    args = [file_in, file_out, dico_bdd, dict_arts, list_mdp_data, dict_models]
+    args = [file_in, file_out, dico_bdd, dict_arts, list_mdp_data, dict_gbc]
     res_proposals = ProposalsWithoutGivenLayout(*args)
     triplets_scores, dd_labels, dicta_input, list_vectsh_ids = res_proposals
     # Shows the results in the prompt and isolates the final ids of articles
@@ -908,8 +949,28 @@ def FinalResultsMethodNoLayout(file_in,
     t_location = time.time()
     args_fd = [dico_bdd, list_mdp_data, list_ids_bestpage, list_features]
     list_xmlout = FindLocationArticleInLayout(*args_fd, dicta_input)
+    print(f"The list_xmlout: {list_xmlout}")
     d_location = time.time() - t_location
     print(f"Duration find location articles: {d_location:*^12.2f} sec.")
+    # HERE I SHOULD TRY TO FIND CORRESPONDANCES WITH THE TRUE LAYOUTS
+    # IF WE FIND A MATCH, WE ADD THE MELODYID IN <PageLayout MelodyId=...>
+    for dict_page_result in list_xmlout:
+        layout_output = [module for module in dict_page_result.keys()]
+        array_layout_output = np.array(layout_output)
+        match = False
+        # We search for a match in the database
+        for id_layout_data, dicolay in dict_layouts.items():
+            layout_data = dicolay['array']
+            if layout_data.shape == array_layout_output.shape:
+                args = [array_layout_output, layout_data, 10]
+                if recover_true_layout.CompareTwoLayouts(*args):
+                    # If match, we add the id of the layout
+                    dict_page_result['idLayout'] = id_layout_data
+                    match = True
+                    break
+        if match is False:
+            dict_page_result['idLayout'] = "None"
+    print(f"The list_xmlout after addition of idLayout: {list_xmlout}")
     # Creates the xml output in the repository file_out
     CreateXmlOutNoLayout(list_xmlout, file_out)
     tot_dur = time.time() - start_time
@@ -926,5 +987,5 @@ list_features += ['petittitre', 'quest_rep', 'intertitre']
 path_mep = '/Users/baptistehessel/Documents/DAJ/MEP/'
 file_in = path_mep + 'ArticlesOptions/'
 file_out = path_mep + 'montageIA/out/outNoLayout.xml'
-args = [file_in, file_out, dico_bdd, dict_arts, list_mdp_data]
+args = [file_in, file_out, dico_bdd, dict_arts, list_mdp_data, dict_gbc]
 # FinalResultsMethodNoLayout(*args)

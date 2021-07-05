@@ -55,6 +55,9 @@ def ExtractDicoArtInput(file_path):
         content = "".join(content)
         soup = BeautifulSoup(content, "lxml")
     art_soup = soup.find('article')
+    if art_soup is None:
+        print(f"The file of the path with xml without article: {file_path}")
+        raise MyException("No article in that file: {file_path}")
     dico_vector_input = {}
     img_soup = art_soup.find('photos')
     aire_img = 0
@@ -328,9 +331,13 @@ def ExtrationDataInput(rep_data):
     # Extraction des articles
     rep_articles = rep_data + '/' + 'articles'
     for file_path in Path(rep_articles).glob('./**/*'):
-        if file_path.suffix == '.xml':
-            dict_vector_input = ExtractDicoArtInput(file_path)
-            list_articles.append(dict_vector_input)
+        if 'printCategory' not in file_path:
+            if file_path.suffix == '.xml':
+                try:
+                    dict_vector_input = ExtractDicoArtInput(file_path)
+                    list_articles.append(dict_vector_input)
+                except Exception as e:
+                    print(f"Error with the extraction of an art. input: {e}")
     # Extraction du MDP
     dico_mdps = {}
     rep_mdp = rep_data + '/' + 'pageTemplate'

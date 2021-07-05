@@ -113,7 +113,7 @@ def ShowPage(id_page, dict_pages):
     # Creation of the object zonning_arts [(x, y, w, h), ...]
     zonning_arts = []
     list_for_rep = []
-    dict_arts_page = dict_pages[id_page]['dico_page']['articles']
+    dict_arts_page = dict_pages[id_page]['articles']
     for i, (id_art, dict_art) in enumerate(dict_arts_page.items()):
         zonning = tuple(dict_art[x] for x in ['x', 'y', 'width', 'height'])
         zonning_arts.append(zonning)
@@ -136,4 +136,3 @@ if show_pages:
         ShowLayout(id_layout, dict_layouts)
         for id_page in dict_layouts[id_layout]['id_pages']:
             ShowPage(id_page, dict_pages)
-

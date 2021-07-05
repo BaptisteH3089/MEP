@@ -122,7 +122,15 @@ except Exception as e:
     logger.error(e, exc_info=True)
     logger.debug('Path to gbc5: {}'.format(path_customer + 'gbc5'))
 # Dictionary with all the models
-dict_models = {2: gbc2, 3: gbc3, 4: gbc4, 5: gbc5}
+dict_gbc = {2: gbc2, 3: gbc3, 4: gbc4, 5: gbc5}
+
+# Loading dictionary with all the pages
+with open(path_customer + 'dict_page_array', 'rb') as f:
+    dict_page_array = pickle.load(f)
+    
+# Loading dictionary with all the layouts with an MelodyId
+with open(path_customer + 'dict_layouts_small', 'rb') as f:
+    dict_layouts = pickle.load(f)
 
 
 class GetLayout(Resource):
@@ -164,13 +172,17 @@ class GetLayout(Resource):
             directories = os.listdir(path_data_input)
             print(f"directories: {directories}")
             if 'pageTemplate' in directories:
+                print("{:-^80}".format(""))
                 print("{:-^80}".format("| Case with layout input |"))
+                print("{:-^80}".format(""))
                 args_lay = [dico_bdd, list_mdp_data, path_data_input, file_out]
                 propositions.ExtractAndComputeProposals(*args_lay)
             else:
+                print("{:-^80}".format(""))
                 print("{:-^80}".format("| Case without layout input |"))
+                print("{:-^80}".format(""))
                 args_nolay = [path_data_input, file_out, dico_bdd, dict_arts]
-                args_nolay += [list_mdp_data, dict_models]
+                args_nolay += [list_mdp_data, dict_gbc, dict_layouts]
                 without_layout.FinalResultsMethodNoLayout(*args_nolay)
             logger.info('End of GET')
         except Exception as e:
