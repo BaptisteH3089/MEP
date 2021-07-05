@@ -21,7 +21,7 @@ feat_module = ['x', 'y', 'width', 'height']
 dict_page_array = {}
 for id_page, dicop in dict_pages.items():
     modules_page = []
-    for dicoa in dicop['dico_page']['articles'].values():
+    for dicoa in dicop['articles'].values():
         modules_page.append([dicoa[x] for x in feat_module])
     dict_page_array[id_page] = np.array(modules_page)
 
