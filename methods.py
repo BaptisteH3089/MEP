@@ -100,7 +100,7 @@ def GetTrainableData(dico_bdd, list_id_pages, y_ref, features):
         # Formation de la big matrice X pour toute la page
         x_all_articles, y_all_articles = np.zeros(0), np.zeros(0)
         # Récupération du dico associé à chaque art dans la BDD
-        dico_arts_page = dico_bdd[id_page]['dico_page']['articles']
+        dico_arts_page = dico_bdd[id_page]['articles']
         # Boucle pour créer les matrices x, y associées aux pages
         for i, (id_art, dico_art) in enumerate(dico_arts_page.items()):
             # Transformation du dico en vecteur
