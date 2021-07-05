@@ -36,9 +36,9 @@ with open(path_customer + 'list_mdp', 'rb') as file:
 def AireTotArts(dico_bdd, nb_arts):
     list_artTot = []
     for key, dicop in dico_bdd.items():
-        if len(dicop['dico_page']['articles']) == nb_arts:
+        if len(dicop['articles']) == nb_arts:
             list_aireTot_art = []
-            for ida, art in dicop['dico_page']['articles'].items():
+            for ida, art in dicop['articles'].items():
                 list_aireTot_art.append(art['aireTot'])
             list_artTot.append(list_aireTot_art)
     print("The number of pages with 3 articles: {}".format(len(list_artTot)))
@@ -61,8 +61,8 @@ def AireTotArts(dico_bdd, nb_arts):
 def SelectionArts(dico_bdd, nb_arts):
     list_dico_arts = []
     for key, dicop in dico_bdd.items():
-        if len(dicop['dico_page']['articles']) == nb_arts:
-            for ida, art in dicop['dico_page']['articles'].items():
+        if len(dicop['articles']) == nb_arts:
+            for ida, art in dicop['articles'].items():
                 dict_elts_art = {}
                 dict_elts_art['aireArt'] = art['width'] * art['height']
                 dict_elts_art['nbPhoto'] = art['nbPhoto']
