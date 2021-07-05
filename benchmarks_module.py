@@ -67,7 +67,7 @@ def GetTrainableData(dico_bdd, dict_arts, list_id_pages, y_ref, list_features):
     # Transformation de big_y into simpler classes
     classes = GetYClasses(y_ref)
     for i, id_page in enumerate(list_id_pages):
-        dicoarts = dico_bdd[id_page]['dico_page']['articles']
+        dicoarts = dico_bdd[id_page]['articles']
         for j, (ida, dicoa) in enumerate(dicoarts.items()):
             vect_art = [dict_arts[ida][x] for x in list_features]
             y_art = [dict_arts[ida][x] for x in ['x', 'y', 'width', 'height']]
@@ -209,15 +209,3 @@ keys = all_durations[0].keys()
 args_zip = [global_min, global_means, keys, dict_means_duration.values()]
 for min_score, mean_score, clfr, duration in zip(*args_zip):
     print(f"{clfr:<10} {min_score:8.3f} {mean_score:8.3f} {duration:8.3f}")
-
-
-
-
-
-
-
-
-
-
-
-
