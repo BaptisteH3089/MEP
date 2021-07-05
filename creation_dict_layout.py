@@ -10,45 +10,12 @@ I have.
 """
 import pickle
 import numpy as np
+import recover_true_layout
 
 # Loading of the dictionary with all information on pages
 path_cm = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM'
 with open(path_cm + '/dico_pages','rb') as f:
     dico_bdd = pickle.load(f)
-
-
-def CompareTwoLayouts(layout1, layout2, tol=20):
-    """
-
-    Useful function in many cases.
-
-    Parameters
-    ----------
-    layout1 : numpy array
-        np.array([[x, y, w, h], [x, y, w, h], ...]).
-    layout2 : numpy array
-        np.array([[x, y, w, h], [x, y, w, h], ...]).
-
-    Returns
-    -------
-    bool
-        True if the two layouts are approximately the same.
-
-    """
-    n = len(layout1)
-    nb_correspondances = 0
-    for i in range(n):
-        for j in range(n):
-            try:
-                if np.allclose(layout1[j], layout2[i], atol=tol):
-                    nb_correspondances += 1
-            except Exception as e:
-                str_exc = (f"An exception occurs with np.allclose: {e}\n"
-                           f"layout1: {layout1}\n"
-                           f"j: {j}, i: {i}"
-                           f"layout2: {layout2}")
-                print(str_exc)
-    return True if nb_correspondances == n else False
 
 
 ##############################################################################
@@ -78,16 +45,16 @@ def CreationDictLayoutSimple(dico_bdd):
     cpt_error = 0
     cpt_layout = 0
     for id_page in dico_bdd.keys():
-        id_layout = dico_bdd[id_page]['dico_page']['pageTemplate']
+        id_layout = dico_bdd[id_page]['pageTemplate']
         # Check wether this layout is already in the dict
         if id_layout in dict_layouts.keys():
             cpt_layout += 1
             dict_layouts[id_layout]['id_pages'].append(id_page)
         else:
-            name_template = dico_bdd[id_page]['dico_page']['nameTemplate']
+            name_template = dico_bdd[id_page]['nameTemplate']
             feat_carton = ['x', 'y', 'width', 'height', 'nbCol', 'nbPhoto']
             list_cartons = []
-            for dict_carton in dico_bdd[id_page]['dico_page']['cartons'].values():
+            for dict_carton in dico_bdd[id_page]['cartons'].values():
                 list_cartons.append(tuple(dict_carton[x] for x in feat_carton))
             dict_layouts[id_layout] = {'nameTemplate': name_template,
                                        'cartons': list_cartons,
@@ -107,14 +74,14 @@ def CreationDictLayoutVerif(dico_bdd):
     dd_layouts_sm = {}
     cpt_layout = 0
     for id_page in dico_bdd.keys():
-            id_layout = dico_bdd[id_page]['dico_page']['pageTemplate']
+            id_layout = dico_bdd[id_page]['pageTemplate']
             # Check wether this layout is already in the dict
             if id_layout in dd_layouts_sm.keys():
                 cpt_layout += 1
                 # HERE I SHOULD DO SOME VERIFS
                 # 1. Check if the number of articles makes sense
                 # 2. Verify if the zonnings of the articles correspond
-                nb_arts_pg = len(dico_bdd[id_page]['dico_page']['articles'])
+                nb_arts_pg = len(dico_bdd[id_page]['articles'])
                 nb_cartons = len(dd_layouts_sm[id_layout]['cartons'])
                 if nb_cartons == nb_arts_pg:
                     modules_layout = []
@@ -122,16 +89,17 @@ def CreationDictLayoutVerif(dico_bdd):
                         modules_layout.append(module[:-2])
                     layout_template = np.array(modules_layout)
                     cartons_page = []
-                    for ida, dicoa in dico_bdd[id_page]['dico_page']['articles'].items():
+                    for ida, dicoa in dico_bdd[id_page]['articles'].items():
                         cartons_page.append([dicoa[x] for x in ['x', 'y', 'width', 'height']])
                     layout_page = np.array(cartons_page)
-                    if CompareTwoLayouts(layout_template, layout_page):
+                    args_c = [layout_template, layout_page]
+                    if recover_true_layout.CompareTwoLayouts(*args_c):
                         dd_layouts_sm[id_layout]['id_pages'].append(id_page)
             else:
-                name_template = dico_bdd[id_page]['dico_page']['nameTemplate']
+                name_template = dico_bdd[id_page]['nameTemplate']
                 feat_carton = ['x', 'y', 'width', 'height', 'nbCol', 'nbPhoto']
                 list_cartons = []
-                for dict_carton in dico_bdd[id_page]['dico_page']['cartons'].values():
+                for dict_carton in dico_bdd[id_page]['cartons'].values():
                     list_cartons.append(tuple(dict_carton[x] for x in feat_carton))
                 # Add the array associated to the layout
                 array_layout = np.array([carton[:-2] for carton in list_cartons])
