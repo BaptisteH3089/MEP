@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from operator import itemgetter
-from matplotlib import patches
-from pathlib import Path
-from sklearn.model_selection import train_test_split
+"""
+Script that validate the models which find the best module for an article
+with a given layout.
+
+Objects necessary:
+    - dico_pages
+    - dico_arts
+    - list_mdp
+
+"""
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import KFold, RepeatedKFold, StratifiedKFold
 from sklearn.model_selection import ShuffleSplit
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
@@ -18,24 +21,30 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import LinearSVC
 from sklearn import svm
 from sklearn.metrics import f1_score
-import xml.etree.cElementTree as ET
-from bs4 import BeautifulSoup as bs
-from nltk.corpus import stopwords
-import matplotlib.pyplot as plt
-import collections as col
 import numpy as np
-import pickle, math, time, os, re
+import pickle, time
+import argparse
 
-path_customer = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM/'
+str_desc = ('Script that prints the cross-validated results of the models '
+            'tested to predict the best module for an article.')
+parser = argparse.ArgumentParser(description=str_desc)
+parser.add_argument('path_customer',
+                    type=str,
+                    help='The repertory with the data of a customer.')
+parser.add_argument('nb_modules_layout',
+                    type=int,
+                    choices=[2, 3, 4, 5],
+                    help='Select the layouts with this number of modules.')
+args = parser.parse_args()
 
 # The dict with all the pages available
-with open(path_customer + 'dico_pages', 'rb') as file:
+with open(args.path_customer + 'dico_pages', 'rb') as file:
     dico_bdd = pickle.load(file)
 # The dict {ida: dicoa, ...}
-with open(path_customer + 'dico_arts', 'rb') as file:
+with open(args.path_customer + 'dico_arts', 'rb') as file:
     dict_arts = pickle.load(file)
 # The list of triplet (nb_pages_using_mdp, array_mdp, list_ids)
-with open(path_customer + 'list_mdp', 'rb') as file:
+with open(args.path_customer + 'list_mdp', 'rb') as file:
     list_mdp_data = pickle.load(file)
 
 
@@ -91,17 +100,13 @@ def GetTrainableData(dico_bdd, dict_arts, list_id_pages, y_ref, list_features):
     return very_big_x, np.array(very_big_y)
 
 
-#%%
-
 def TrainValidateModels(dico_bdd,
                         list_id_pages,
                         y_ref):
-    t0 = time.time()
     args = [dico_bdd, dict_arts, list_id_pages, y_ref, list_features]
     X, Y = GetTrainableData(*args)
     clf = RandomForestClassifier()
     ss = ShuffleSplit(n_splits=4)
-    res_small_vector = []
     dict_duration = {}
     mean_rfc = []
     mean_svc = []
@@ -156,7 +161,7 @@ def TrainValidateModels(dico_bdd,
         score_gnb = f1_score(Y[test], preds_gnb, average='macro')
         mean_gnb.append(score_gnb)
         dict_duration['gnb'] = time.time() - t_gnb
-        # Logistic regression default 
+        # Logistic regression default
         t_log = time.time()
         logreg = make_pipeline(StandardScaler(), LogisticRegression())
         logreg.fit(X[train], Y[train])
@@ -178,15 +183,14 @@ def TrainValidateModels(dico_bdd,
     return list_mins, list_means, dict_duration
 
 
-#%%
-
 list_features = ['nbSign', 'nbBlock', 'abstract', 'syn']
 list_features += ['exergue', 'title', 'secTitle', 'supTitle']
 list_features += ['subTitle', 'nbPhoto', 'aireImg', 'aireTot']
 list_features += ['petittitre', 'quest_rep', 'intertitre']
 # On sélectionne le nb d'articles qu'on veut avec un nb min de pages pour
 # entraîner le modèle
-pages_p_art = SelectionModelesPages(list_mdp_data, 3, 20)
+nb_modules_layout = args.nb_modules_layout
+pages_p_art = SelectionModelesPages(list_mdp_data, nb_modules_layout, 20)
 
 all_durations, all_means, all_mins = [], [], []
 for nb_pages, big_y, list_id_pages in pages_p_art:
@@ -207,5 +211,7 @@ global_min = np.min(all_mins, axis=0)
 global_means = np.mean(all_means, axis=0)
 keys = all_durations[0].keys()
 args_zip = [global_min, global_means, keys, dict_means_duration.values()]
+args_format = ["Classifier", "Min Score", "Mean Score", "Duration"]
+print("{:<12} {:<11} {:<11} {:<11}".format(*args_format))
 for min_score, mean_score, clfr, duration in zip(*args_zip):
-    print(f"{clfr:<10} {min_score:8.3f} {mean_score:8.3f} {duration:8.3f}")
+    print(f"{clfr:<10} {min_score:10.3f} {mean_score:10.3f} {duration:10.3f}")

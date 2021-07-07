@@ -7,14 +7,30 @@ Created on Fri Jul  2 16:15:01 2021
 
 Script used to create the dictionary dict_page_array
 
+Object necessary:
+    - dico_pages
+
 """
 import pickle
 import numpy as np
+import argparse
 
-path_cm = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM/'
+str_desc = 'Creation dict id_page: array_layout.'
+parser = argparse.ArgumentParser(description=str_desc)
+parser.add_argument('path_customer',
+                    help="The repertory where there is the dico_bdd",
+                    type=str)
+parser.add_argument('file_out',
+                    help="The path where the dict will be created.",
+                    type=str)
+parser.add_argument('--save_dict',
+                    help="Whether to save or not the dict.",
+                    type=bool,
+                    default=True)
+args = parser.parse_args()
 
 # Loading dictionary with all the pages
-with open(path_cm + 'dico_pages', 'rb') as f:
+with open(args.path_customer + 'dict_pages', 'rb') as f:
     dict_pages = pickle.load(f)
 
 feat_module = ['x', 'y', 'width', 'height']
@@ -27,6 +43,7 @@ for id_page, dicop in dict_pages.items():
 
 # Check if this is OK
 s = 0
+print("{:-^80}".format("Visualisation of the results"))
 for idp, arrayp in dict_page_array.items():
     print(idp)
     print(arrayp)
@@ -34,8 +51,7 @@ for idp, arrayp in dict_page_array.items():
         break
     s += 1
 
-save_dict = True
-if save_dict:
-    with open(path_cm + 'dict_page_array', 'wb') as f:
+# Save the dict
+if args.save_dict:
+    with open(args.file_out, 'wb') as f:
         pickle.dump(dict_page_array, f)
-

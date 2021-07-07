@@ -3,9 +3,6 @@
 import pickle
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import make_pipeline
 import xml.etree.cElementTree as ET
 from pathlib import Path
 from operator import itemgetter
@@ -15,6 +12,9 @@ os.chdir('/Users/baptistehessel/Documents/DAJ/MEP/montageIA/bin/')
 import propositions
 import methods
 import recover_true_layout
+
+class MyException(Exception):
+    pass
 
 path_customer = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM/'
 
@@ -143,20 +143,6 @@ def CreationVectXY(dico_narts,
     for key in dico_narts.keys():
         for i, (ida, dicoa) in enumerate(dico_narts[key].items()):
             vect_art = [dict_arts[ida][x] for x in list_features]
-            """
-            if 'petittitre' in dicoa['typeBlock']:
-                vect_art.append(1)
-            else:
-                vect_art.append(0)
-            if 'question' in dicoa['typeBlock']:
-                vect_art.append(1)
-            else:
-                vect_art.append(0)
-            if 'intertitre' in dicoa['typeBlock']:
-                vect_art.append(1)
-            else:
-                vect_art.append(0)
-            """
             vect_art = np.array(vect_art, ndmin=2)
             if i == 0:
                 vect_page = vect_art
@@ -197,6 +183,8 @@ def CreationXY(vect_XY, dict_labels):
     """
     Creation of the matrix X and Y used to train a model.
     """
+    if len(vect_XY) < 5:
+        return [], []
     for i, (vect_X, vect_Y) in enumerate(vect_XY):
         if i == 0:
             big_X = vect_X
@@ -255,7 +243,13 @@ def CreateXYFromScratch(dico_bdd,
     args_xy = [dico_narts, dict_arts, list_mdp_narts, list_feats, nbpg_min]
     vect_XY = CreationVectXY(*args_xy)
     dict_labels = CreationDictLabels(vect_XY)
-    X, Y = CreationXY(vect_XY, dict_labels)
+    try:
+        X, Y = CreationXY(vect_XY, dict_labels)
+    except Exception as e:
+        str_e = f"An error with without_layout:CreateXYFromScratch:CreationXY"
+        str_e += f"\n{e}\n"
+        str_e += f"vect_XY: \n{vect_XY}\n dict_labels: \n{dict_labels}"
+        raise MyException(str_e)
     return X, Y, dict_labels
 
 
@@ -304,7 +298,7 @@ def PredsModel(X, Y, list_vect_page, trained_gbc):
 def CreationListDictArt(rep_data):
     """
     Used for method files.
-    
+
     Parameters
     ----------
     rep_data : str
@@ -376,11 +370,11 @@ def GetSelectionOfArticlesFromFiles(all_ntuples):
     Returns
     -------
     final_obj : set
-        A set with all the tuples containing th ids of articles that together respect the
-        constraints.
+        A set with all the tuples containing th ids of articles that together
+        respect the constraints.
 
     """
-    # Use of the constraints 
+    # Use of the constraints
     possib_area = ConstraintArea(all_ntuples)
     possib_imgs = ConstraintImgs(all_ntuples)
     # CONSTRAINT SCORE ??? -> I should add that
@@ -570,7 +564,6 @@ def SelectBestTripletAllNumbers(all_triplets, global_mean_vect, global_vect_std)
             norm_vect = (vect_page - global_mean_vect) / global_vect_std
             try:
                 diff_eucl = np.sqrt((norm_vect - norm_mean_local_vect) ** 2)
-                diff_abs = np.abs(norm_vect - norm_mean_local_vect)
                 variance_triplet += np.sum(diff_eucl)
             except Exception as e:
                 args_n = ["norm_mean_local_vect", norm_mean_local_vect]
@@ -648,8 +641,8 @@ def ProposalsWithoutGivenLayout(file_in,
 
     Returns
     -------
-    all_triplets_scores : list 
-        [(score_triplet, triplet)] with 
+    all_triplets_scores : list
+        [(score_triplet, triplet)] with
         triplet = [(sc_page, label_page, array_page), (), ()]
 
     """
@@ -773,7 +766,7 @@ def FindLocationArticleInLayout(dico_bdd,
     This function is used once we have the association layout/ids of articles.
     It finds the best location of the articles in the different modules of the
     layout.
-    
+
     Parameters
     ----------
     dico_bdd : dictionary
@@ -816,7 +809,7 @@ def FindLocationArticleInLayout(dico_bdd,
         clf.fit(X, Y)
         # Matrix with the predicted probas for each article input
         probas_preds = clf.predict_proba(X_input)
-        # From that we generate all possible combinations of articles and we 
+        # From that we generate all possible combinations of articles and we
         # keep the one with the best score
         # 1. First I generate a list of tuples with ids of articles
         if len(list_ids) == 2:
@@ -868,7 +861,7 @@ def CreateXmlOutNoLayout(list_xmlout, file_out):
         </PageLayout>
         ...
     </PageLayout>
-        
+
     Parameters
     ----------
     list_xmlout : list of dictionaries
@@ -922,7 +915,7 @@ def FinalResultsMethodNoLayout(file_in,
         The dictionary of the form {id_art: dico_art, ...}.
     list_mdp_data : list
         A list of tuple [(nb_arts, array_mdp, list_ids), ...].
-    dict_gbc : dictionary 
+    dict_gbc : dictionary
         Dictionary with the gradient boosting classifier of the form
         {2: GBC2, 3: GBC3, ...}
     dict_layouts : dictionary

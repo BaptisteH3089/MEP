@@ -10,7 +10,6 @@ associated to a page.
 
 """
 import pickle
-import creation_dict_layout
 import numpy as np
 
 path_cm = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM/'
@@ -66,6 +65,7 @@ def NbOfCorrespondances(dict_page_array, dict_layouts):
     true layout that has a MelodyId.
     Pour chaque layout dans dict_page_array, on cherche dans dict_layouts
     si on trouve une correspondance.
+
     """
     # It's long. Roughly 2 minutes.
     nb_page_corr = 0
@@ -74,7 +74,6 @@ def NbOfCorrespondances(dict_page_array, dict_layouts):
         for idl, dictl in dict_layouts.items():
             true_layout = np.array([cart[:-2] for cart in dictl['cartons']])
             if true_layout.shape == arrayp.shape:
-                same_shape += 1
                 if CompareTwoLayouts(true_layout, arrayp):
                     nb_page_corr += 1
     return nb_page_corr

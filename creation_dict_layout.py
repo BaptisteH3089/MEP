@@ -7,14 +7,54 @@ Created on Fri Jul  2 09:49:35 2021
 
 Script used to extract the data about the layout in the 15.000 pages about CM
 I have.
+
+Object necessary:
+    - dict_pages.
+
+The arguments of the script are:
+    - path_customer ("The repertory where there is the dico_bdd").
+    - --save_dict (default=True)
+    - --name_dict (default='dict_layouts_small')
+
+Imports the script recover_true_layout.
+
+Creates the object /path_customer/dict_layouts_small.
+
+dict_layouts_small is of the form:
+    - {id_layout: {'nameTemplate': name_template,
+                   'cartons': list_cartons,
+                   'id_pages': list_ids_page,
+                   'array': array_layout},
+       ...}
+
 """
+
 import pickle
 import numpy as np
 import recover_true_layout
+import argparse
+
+parser = argparse.ArgumentParser(description='Creation list with layouts.')
+parser.add_argument('path_customer',
+                    help="The repertory where there is the dico_bdd",
+                    type=str)
+parser.add_argument('--name_dict',
+                    help="The name of the dict created by this script.",
+                    type=str,
+                    default='dict_layouts_small')
+parser.add_argument('--save_dict',
+                    help="Whether to save or not the dict.",
+                    type=bool,
+                    default=True)
+args = parser.parse_args()
+
+if args.path_customer[-1] == '/':
+    path_customer = args.path_customer
+else:
+    path_customer = args.path_customer + '/'
 
 # Loading of the dictionary with all information on pages
-path_cm = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM'
-with open(path_cm + '/dico_pages','rb') as f:
+with open(path_customer + 'dict_pages','rb') as f:
     dico_bdd = pickle.load(f)
 
 
@@ -37,12 +77,11 @@ def CreationDictLayoutSimple(dico_bdd):
     dict_layouts : dictionary
         A dictionary of the form {id_layout: {'nameTemplate': str,
                                               'cartons': list of tuples,
-                                              'id_pages': list}} 
+                                              'id_pages': list}}
 
     """
     # Creation of the dictionary with all the layouts
     dict_layouts = {}
-    cpt_error = 0
     cpt_layout = 0
     for id_page in dico_bdd.keys():
         id_layout = dico_bdd[id_page]['pageTemplate']
@@ -73,7 +112,8 @@ def CreationDictLayoutVerif(dico_bdd):
     # Creation of the dictionary with all the layouts
     dd_layouts_sm = {}
     cpt_layout = 0
-    for id_page in dico_bdd.keys():
+    n = len(dico_bdd)
+    for i, id_page in enumerate(dico_bdd.keys()):
             id_layout = dico_bdd[id_page]['pageTemplate']
             # Check wether this layout is already in the dict
             if id_layout in dd_layouts_sm.keys():
@@ -107,26 +147,23 @@ def CreationDictLayoutVerif(dico_bdd):
                                             'cartons': list_cartons,
                                             'id_pages': [id_page],
                                             'array': array_layout}
+            if i % (n//50) == 0:
+                print(f"CreationDictLayoutVerif: {i/n:.2%}")
     f = lambda x: len(x[1]['id_pages'])
     dd_layouts_sm = dict(sorted(dd_layouts_sm.items(), key=f, reverse=True))
     return dd_layouts_sm
 
 
-# Wheter to save or not the big dict without verifications.
-save_dict_big = False
-if save_dict_big:
-    dict_layouts_big = CreationDictLayoutSimple(dico_bdd)
-    with open(path_cm + '/dict_layouts_big', 'wb') as f:
-        pickle.dump(dict_layouts_big, f)
+# Show if the results make sense
+dd_layouts_sm = CreationDictLayoutVerif(dico_bdd)
+print("{:-^80}".format("Visualisation of the results"))
+for i, (key, val) in enumerate(dd_layouts_sm.items()):
+    print(key)
+    print(val)
+    if i == 10:
+        break
 
 # Wheter to save or not the small dict.
-save_dict_small = False
-if save_dict_small:
-    dd_layouts_sm = CreationDictLayoutVerif(dico_bdd)
-    for i, (key, val) in enumerate(dd_layouts_sm.items()):
-        print(key)
-        print(val)
-        if i == 10:
-            break
-    with open(path_cm + '/dict_layouts_small', 'wb') as f:
+if args.save_dict:
+    with open(path_customer + args.name_dict, 'wb') as f:
         pickle.dump(dd_layouts_sm, f)

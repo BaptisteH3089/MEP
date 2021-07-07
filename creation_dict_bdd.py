@@ -1,14 +1,31 @@
-from pathlib import Path
+"""
+@author: baptistehessel
+
+Creates the main dictionary with all the information about the pages of a
+client.
+The dict_pages is of the form:
+    {id_page: dict_page, ...}.
+The dict_page includes several dictionary or list:
+    dict_page = {'arts': ..., 'cartons': ..., ...}.
+
+The arguments of the script are:
+    - file_in ("The repertory with the xml files with the articles.")
+    - file_out ("The repertory where the dictionary will be created.")
+    - --name_dict ("The name of the dictionary.". default='dict_pages')
+    - --save_dict (default=True)
+
+The name of the object created is dict_pages. The absolute path is:
+    file_out/dict_pages.
+
+"""
+
 from bs4 import BeautifulSoup as bs
-import xml.etree.cElementTree as ET
-import matplotlib.pyplot as plt
+from pathlib import Path
 import numpy as np
 import argparse
 import pickle
-import math
 import time
 import re
-import os
 
 
 class MyException(Exception):
@@ -20,40 +37,17 @@ parser.add_argument('file_in',
                     help="The repertory with the xml files with the articles.",
                     type=str)
 parser.add_argument('file_out',
-                    help="The path where the dictionary will be created.",
+                    help="The repertory where the dictionary will be created.",
                     type=str)
+parser.add_argument('--name_dict',
+                    help="The name of the created file.",
+                    type=str,
+                    default='dict_pages')
 parser.add_argument('--save_dict',
                     help="Whether to save or not the dictionary.",
                     type=bool,
                     default=True)
 args = parser.parse_args()
-
-
-# Champs page
-champs_page = ['width', 'height', 'paddingTop', 'paddingLeft', 'catName']
-champs_page += ['nbArt', 'art', 'propArt', 'propImg', 'nbCar', 'nbImg']
-champs_page += ['pageName', 'pageTemplate', 'nameTemplate', 'cartons']
-champs_page += ['melodyId', 'cahierCode', 'customerCode', 'pressTitleCode']
-champs_page += ['editionCode', 'folio']
-
-# Champs carton
-champs_carton = ['x', 'y', 'height', 'width', 'nbCol', 'nbPhoto']
-
-# Champs article
-champs_art = ['x', 'y', 'width', 'height']
-champs_art += ['melodyId', 'nbSign', 'nbPhoto', 'nbBlock', 'nbCol']
-champs_art += ['abstract', 'syn', 'exergue']
-champs_art += ['title', 'secTitle', 'supTitle', 'subTitle']
-champs_art += ['nbSignBlock', 'typeBlock', 'author', 'commune']
-champs_art += ['note', 'photo', 'posArt', 'taille', 'aireImg']
-champs_art += ['score', 'content', 'hasIncl', 'titleContent']
-champs_art += ['isPrinc', 'isSec', 'isMinor', 'isSub', 'isTer']
-champs_art += ['pos', 'aire', 'distToPrinc']
-champs_art += ['nbSignTxt']
-
-# Champ photo
-ch_ph = ['x', 'y', 'xAbs', 'yAbs', 'width', 'height', 'credit',
-         'legende', 'aire', 'aireImg']
 
 
 def FillDictPage(content_xml, infos_page, file_name):
@@ -170,8 +164,10 @@ def FillDictArticle(art_soup):
 
     try:
         if len(art_soup.get('mmwidth')) > 0:
-            dict_article_current['width'] = round(float(art_soup.get('mmwidth')), 1)
-            dict_article_current['height'] = round(float(art_soup.get('mmheight')), 1)
+            mmWidth = float(art_soup.get('mmwidth'))
+            mmHeight = float(art_soup.get('mmheight'))
+            dict_article_current['width'] = round(mmWidth, 1)
+            dict_article_current['height'] = round(mmHeight, 1)
         else:
             dict_article_current['width'] = -1
             dict_article_current['height'] = -1
@@ -273,7 +269,10 @@ def FillDictArticle(art_soup):
         print(e, 'FillDictArticle : nbPhoto')
     # Détermination de si l'article est en haut ou non
     try:
-        dict_article_current['posArt'] = 1 if float(dict_article_current['y']) < 90 else 0
+        if float(dict_article_current['y']) < 90:
+            dict_article_current['posArt'] = 1
+        else:
+            dict_article_current['posArt'] = 0
     except Exception as e:
         print(e, 'FillDictArticle : posArt')
     # Initialisation de la hiérarchie des articles
@@ -293,13 +292,13 @@ def FillDictPhoto(bl_ph_soup):
     try:
         dict_photo['x'] = round(float(bl_ph_soup.get('x')), 1)
         dict_photo['y'] = round(float(bl_ph_soup.get('y')), 1)
-    except Exception as e:
+    except Exception:
         dict_photo['x'] = -1
         dict_photo['y'] = -1
     try:
         dict_photo['xAbs'] = round(float(bl_ph_soup.get('absolute_x')), 1)
         dict_photo['yAbs'] = round(float(bl_ph_soup.get('absolute_y')), 1)
-    except Exception as e:
+    except Exception:
         dict_photo['xAbs'] = -1
         dict_photo['yAbs'] = -1
     try:
@@ -311,13 +310,13 @@ def FillDictPhoto(bl_ph_soup):
             dict_photo['height'] = round(float(bl_ph_soup.get('height')), 1)
         else:
             dict_photo['height'] = 60
-    except Exception as e:
+    except Exception:
         dict_photo['width'] = 80
         dict_photo['height'] = 60
     try:
         dict_photo['credit'] = int(bl_ph_soup.find('credit').get('nbsignes'))
         dict_photo['legende'] = int(bl_ph_soup.find('legend').get('nbsignes'))
-    except Exception as e:
+    except Exception:
         dict_photo['credit'] = -1
         dict_photo['legende'] = -1
     return dict_photo
@@ -327,11 +326,9 @@ def ExtrationData(rep_data):
     """
     Extraction des données des xml
     """
-    os.chdir(rep_data)
     info_extract_pages = []
     # Boucle pour l'extraction des xml
-    i = 0
-    for p in Path('.').glob('./**/*'):
+    for i, p in enumerate(Path(rep_data).glob('./**/*')):
         if p.suffix == '.xml':
             with open(str(p), "r", encoding='utf-8') as file:
                 content = file.readlines()
@@ -342,8 +339,8 @@ def ExtrationData(rep_data):
                 dict_page = FillDictPage(soup, pg, p)
                 dict_page['cartons'] = []
                 try:
-                    for carton in soup.find_all('carton'):
-                        dict_carton = FillDictCarton(carton)
+                    for carton_soup in soup.find_all('carton'):
+                        dict_carton = FillDictCarton(carton_soup)
                         dict_page['cartons'].append(dict_carton)
                 except Exception as e:
                     print(e, 'l.265 FillDictCarton', p)
@@ -364,6 +361,8 @@ def ExtrationData(rep_data):
                     except Exception as e:
                         print(e, 'l.288', p)
             info_extract_pages.append(dict_page)
+            if i % 500 == 0:
+                print(f"500 files extracted")
     return info_extract_pages
 
 
@@ -375,7 +374,7 @@ def TestInt(v, ref, lg, ht):
 
 def DetermPrinc(dict_page):
     """
-    Donne le score d'être l'art princ pour chaque article de la page
+    Donne le score d'être l'art princ pour chaque article de la page.
     """
     probas = []
     for ind_art, dict_art in enumerate(dict_page['art']):
@@ -608,8 +607,11 @@ def UpdateAll(dict_pages):
     """
     Update toutes les pages.
     """
-    for dict_page in dict_pages:
+    n = len(dict_pages)
+    for i, dict_page in enumerate(dict_pages):
         dict_page = Update(dict_page)
+        if i % (n//50) == 0:
+            print(f"UpdateAll: {100*i/n:.2f}%")
     return dict_pages
 
 
@@ -802,7 +804,7 @@ def ShowElementsDicoBDD(dico_bdd):
 
 ##############################################################################
 #                                                                            #
-#             Extraction des données et Création des dict page               #
+#        Extraction of the data and Creation of the dict_pages               #
 #                                                                            #
 ##############################################################################
 
@@ -824,9 +826,12 @@ t0 = time.time()
 dico_bdd = CreationBDD(list_dict_pages)
 print("CreationBDD: {:.2f} sec".format(time.time() - t0))
 
-
 ShowElementsDicoBDD(dico_bdd)
 
 if args.save_dict:
-    with open(args.file_out, 'wb') as f:
+    if args.file_out[-1] == '/':
+        file_out = args.file_out
+    else:
+        file_out = args.file_out + '/'
+    with open(file_out + args.name_dict, 'wb') as f:
         pickle.dump(dico_bdd, f)

@@ -4,6 +4,15 @@
 Created on Mon Jun  7 15:57:50 2021
 
 @author: baptistehessel
+
+Script that creates all the files that will be used to compute proposals
+of page for a given client.
+
+creation_dict_bdd.py:
+
+creation_dict_layout.py:
+    - dico_pages
+
 """
 
 ############################################
@@ -13,15 +22,10 @@ Created on Mon Jun  7 15:57:50 2021
 ############################################
 
 import pickle
+import argparse
+import creation_dict_bdd
+import creation_dict_layout
+import creation_dict_page_array_fast
+import creation_dict_page_array
+import creation_list_mdp_data
 
-
-dico_arts = {}
-
-rep_data = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA copie/data/CM'
-with open(rep_data + '/dico_articles', 'wb') as file:
-    pickle.dump(dico_arts, file)
-
-
-
-# I have to be sure of the kind of input I will receive, if one day I receive
-# something.
