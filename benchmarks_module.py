@@ -38,10 +38,10 @@ parser.add_argument('nb_modules_layout',
 args = parser.parse_args()
 
 # The dict with all the pages available
-with open(args.path_customer + 'dico_pages', 'rb') as file:
+with open(args.path_customer + 'dict_pages', 'rb') as file:
     dico_bdd = pickle.load(file)
 # The dict {ida: dicoa, ...}
-with open(args.path_customer + 'dico_arts', 'rb') as file:
+with open(args.path_customer + 'dict_arts', 'rb') as file:
     dict_arts = pickle.load(file)
 # The list of triplet (nb_pages_using_mdp, array_mdp, list_ids)
 with open(args.path_customer + 'list_mdp', 'rb') as file:

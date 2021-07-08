@@ -13,7 +13,7 @@ import argparse
 Eventually I can check if it's better when I increase the number of features.
 """
 
-# ARG PARSER - SERVOR. Initilisation of the arguements of the script 
+# ARG PARSER - SERVOR. Initilisation of the arguements of the script
 # montage_ia.xml for the start webservice montage IA.
 parser = argparse.ArgumentParser(description='Models used to predict layouts.')
 parser.add_argument('--selected_models',
@@ -56,10 +56,10 @@ list_features += ['petittitre', 'quest_rep', 'intertitre']
 path_cm = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM/'
 
 # The dict with all the pages available
-with open(path_cm + 'dico_pages', 'rb') as file:
+with open(path_cm + 'dict_pages', 'rb') as file:
     dico_bdd = pickle.load(file)
 # The dict {ida: dicoa, ...}
-with open(path_cm + 'dico_arts', 'rb') as file:
+with open(path_cm + 'dict_arts', 'rb') as file:
     dict_arts = pickle.load(file)
 # The list of triplet (nb_pages_using_mdp, array_mdp, list_ids)
 with open(path_cm + 'list_mdp', 'rb') as file:
@@ -67,6 +67,8 @@ with open(path_cm + 'list_mdp', 'rb') as file:
 
 
 def RemovingLabels(X, Y, nbmin):
+    smaller_X = np.zeros(1)
+    smaller_Y = []
     init = False
     dict_labels = {x: list(Y).count(x) for x in set(list(Y))}
     for line_X, label_Y in zip(X, Y):
@@ -83,7 +85,7 @@ def RemovingLabels(X, Y, nbmin):
                 init = True
     return smaller_X, np.array(smaller_Y)
 
-            
+
 ##############################################################################
 #                                                                            #
 #                 MODEL - LAYOUTS WITH 2 ARTICLES                            #
@@ -95,7 +97,7 @@ if dict_model[2] is True:
     nb_arts = 2
     args_cr = [dico_bdd, dict_arts, list_mdp_data, nb_arts, nb_pgmin]
     X, Y, dict_labels = without_layout.CreateXYFromScratch(*args_cr, list_features)
-    # The model with the layouts with 2 articles is trained with 1136 and 
+    # The model with the layouts with 2 articles is trained with 1136 and
     # there are 24 different classes or layouts
     list_dec = [(x, list(Y).count(x)) for x in set(list(Y))]
     X, Y = RemovingLabels(X, Y, 10)
@@ -127,7 +129,7 @@ if dict_model[2] is True:
         clf.fit(X, Y)
         print(f"best params: {clf.best_params_}")
         print(f"best score: {clf.best_score_}")
-        
+
     ##### SAVE MODEL #####
     if args.save_model:
         if args.grid_search:
@@ -158,7 +160,7 @@ if dict_model[3]:
     for k, (label, nbelts) in enumerate(list_dec):
         print(f"{k:<6} {nbelts:>6}")
     print(f"Total number of pages: {sum((nb for _, nb in list_dec)):->15}")
-    
+
     ##### CROSS-VALIDATION SCORE #####
     if args.cross_val:
         mean_gbc3 = []
@@ -170,7 +172,7 @@ if dict_model[3]:
             score_gbc = f1_score(Y[test], preds_gbc, average='macro')
             mean_gbc3.append(score_gbc)
         print(f"The cross-val score: {np.mean(mean_gbc3)}")
-    
+
     ##### TUNING PARAMETERS #####
     if args.grid_search:
         param_gbc = {'n_estimators': range(50, 200, 25),
@@ -180,7 +182,7 @@ if dict_model[3]:
         clf.fit(X, Y)
         print(f"best params: {clf.best_params_}")
         print(f"best score: {clf.best_score_}")
-    
+
     ##### SAVE MODEL #####
     if args.save_model:
         if args.grid_search:
@@ -223,7 +225,7 @@ if dict_model[4]:
             score_gbc = f1_score(Y[test], preds_gbc, average='macro')
             mean_gbc4.append(score_gbc)
         print(f"The cross-val score: {np.mean(mean_gbc4)}")
-    
+
     ##### TUNING PARAMETERS #####
     if args.grid_search:
         param_gbc = {'n_estimators': range(50, 200, 25),
@@ -233,7 +235,7 @@ if dict_model[4]:
         clf.fit(X, Y)
         print(f"best params: {clf.best_params_}")
         print(f"best score: {clf.best_score_}")
-    
+
     ##### SAVE MODEL #####
     if args.save_model:
         if args.grid_search:

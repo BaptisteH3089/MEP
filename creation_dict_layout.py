@@ -11,11 +11,6 @@ I have.
 Object necessary:
     - dict_pages.
 
-The arguments of the script are:
-    - path_customer ("The repertory where there is the dico_bdd").
-    - --save_dict (default=True)
-    - --name_dict (default='dict_layouts_small')
-
 Imports the script recover_true_layout.
 
 Creates the object /path_customer/dict_layouts_small.
@@ -28,34 +23,9 @@ dict_layouts_small is of the form:
        ...}
 
 """
-
 import pickle
 import numpy as np
 import recover_true_layout
-import argparse
-
-parser = argparse.ArgumentParser(description='Creation list with layouts.')
-parser.add_argument('path_customer',
-                    help="The repertory where there is the dico_bdd",
-                    type=str)
-parser.add_argument('--name_dict',
-                    help="The name of the dict created by this script.",
-                    type=str,
-                    default='dict_layouts_small')
-parser.add_argument('--save_dict',
-                    help="Whether to save or not the dict.",
-                    type=bool,
-                    default=True)
-args = parser.parse_args()
-
-if args.path_customer[-1] == '/':
-    path_customer = args.path_customer
-else:
-    path_customer = args.path_customer + '/'
-
-# Loading of the dictionary with all information on pages
-with open(path_customer + 'dict_pages','rb') as f:
-    dico_bdd = pickle.load(f)
 
 
 ##############################################################################
@@ -93,7 +63,7 @@ def CreationDictLayoutSimple(dico_bdd):
             name_template = dico_bdd[id_page]['nameTemplate']
             feat_carton = ['x', 'y', 'width', 'height', 'nbCol', 'nbPhoto']
             list_cartons = []
-            for dict_carton in dico_bdd[id_page]['cartons'].values():
+            for dict_carton in dico_bdd[id_page]['cartons']:
                 list_cartons.append(tuple(dict_carton[x] for x in feat_carton))
             dict_layouts[id_layout] = {'nameTemplate': name_template,
                                        'cartons': list_cartons,
@@ -109,6 +79,7 @@ def CreationDictLayoutSimple(dico_bdd):
 
 
 def CreationDictLayoutVerif(dico_bdd):
+    feat_carton = ['x', 'y', 'width', 'height', 'nbCol', 'nbPhoto']
     # Creation of the dictionary with all the layouts
     dd_layouts_sm = {}
     cpt_layout = 0
@@ -128,21 +99,21 @@ def CreationDictLayoutVerif(dico_bdd):
                     for module in dd_layouts_sm[id_layout]['cartons']:
                         modules_layout.append(module[:-2])
                     layout_template = np.array(modules_layout)
-                    cartons_page = []
+                    cartons = []
                     for ida, dicoa in dico_bdd[id_page]['articles'].items():
-                        cartons_page.append([dicoa[x] for x in ['x', 'y', 'width', 'height']])
-                    layout_page = np.array(cartons_page)
+                        cartons.append([dicoa[x] for x in feat_carton[:-2]])
+                    layout_page = np.array(cartons)
                     args_c = [layout_template, layout_page]
                     if recover_true_layout.CompareTwoLayouts(*args_c):
                         dd_layouts_sm[id_layout]['id_pages'].append(id_page)
             else:
                 name_template = dico_bdd[id_page]['nameTemplate']
-                feat_carton = ['x', 'y', 'width', 'height', 'nbCol', 'nbPhoto']
                 list_cartons = []
-                for dict_carton in dico_bdd[id_page]['cartons'].values():
-                    list_cartons.append(tuple(dict_carton[x] for x in feat_carton))
+                for dict_carton in dico_bdd[id_page]['cartons']:
+                    list_cartons.append(tuple(dict_carton[x]
+                                              for x in feat_carton))
                 # Add the array associated to the layout
-                array_layout = np.array([carton[:-2] for carton in list_cartons])
+                array_layout = np.array([x[:-2] for x in list_cartons])
                 dd_layouts_sm[id_layout] = {'nameTemplate': name_template,
                                             'cartons': list_cartons,
                                             'id_pages': [id_page],
@@ -154,16 +125,16 @@ def CreationDictLayoutVerif(dico_bdd):
     return dd_layouts_sm
 
 
-# Show if the results make sense
-dd_layouts_sm = CreationDictLayoutVerif(dico_bdd)
-print("{:-^80}".format("Visualisation of the results"))
-for i, (key, val) in enumerate(dd_layouts_sm.items()):
-    print(key)
-    print(val)
-    if i == 10:
-        break
-
-# Wheter to save or not the small dict.
-if args.save_dict:
-    with open(path_customer + args.name_dict, 'wb') as f:
-        pickle.dump(dd_layouts_sm, f)
+def CreationDictLayoutsSmall(dict_pages, path_customer, save_dict=True):
+    # Show if the results make sense
+    dd_layouts_sm = CreationDictLayoutVerif(dict_pages)
+    print("{:-^80}".format("Visualisation of the results"))
+    for i, (key, val) in enumerate(dd_layouts_sm.items()):
+        print(key)
+        print(val)
+        if i == 10:
+            break
+    # Wheter to save or not the small dict.
+    if save_dict:
+        with open(path_customer + 'dict_layouts_small', 'wb') as f:
+            pickle.dump(dd_layouts_sm, f)

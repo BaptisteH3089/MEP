@@ -2,17 +2,12 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
 from bs4 import BeautifulSoup
-from sklearn.ensemble import RandomForestClassifier
 from operator import itemgetter
 import xml.etree.cElementTree as ET
 import numpy as np
 import methods
-import zipfile
-import pickle
-import math
-import time
 import re
-import os
+
 
 
 # Classe pour écrire des exceptions personnalisées
@@ -51,7 +46,10 @@ def ExtractDicoArtInput(file_path):
         try:
             content = file.readlines()
         except Exception as e:
-            print(str(file))
+            str_exc = (f"Error in propositions:ExtractDicoArtInput \n"
+                       f"An error while opening the file: {e} \n"
+                       f"The path of the file: {str(file_path)}.")
+            raise MyException(str_exc)
         content = "".join(content)
         soup = BeautifulSoup(content, "lxml")
     art_soup = soup.find('article')
@@ -94,7 +92,6 @@ def ExtractDicoArtInput(file_path):
     syn_indicatrice = 1 if len(syn) > 0 else 0
     exergue_indicatrice = 1 if len(exergue) > 0 else 0
     # Données du carton. Plus fiable normalement.
-    carton = soup.find('carton')
     options_soup_txt = soup.find('options').text
     options_soup = BeautifulSoup(options_soup_txt, "lxml")
     liste_blocks = []
@@ -146,8 +143,6 @@ def ExtractDicoArtInput(file_path):
     dico_vector_input['aireImg'] = aire_img
     try: dico_vector_input['melodyId'] = int(art_soup.find('id').text)
     except: dico_vector_input['melodyId'] = 8888
-    nb_img_len = len(art_soup.find_all('photo'))
-    # dico_vector_input['nbPhoto'] = nb_img_len
     try: dico_vector_input['nbPhoto'] = len(aire_imgs)
     except: dico_vector_input['nbPhoto'] = 0
     text_raw_soup = art_soup.find('text_raw')
@@ -185,8 +180,10 @@ def ExtractMDP(file_path):
         try:
             content = file.readlines()
         except Exception as e:
-            print(str(file))
-            raise e
+            str_exc = (f"Error in propositions:ExtractMDP \n"
+                       f"An error while opening the file: {e} \n"
+                       f"The path of the file: {str(file_path)}.")
+            raise MyException(str_exc)
         content = "".join(content)
     soup = BeautifulSoup(content, "lxml")
     cartons_soup = soup.find_all('carton')
@@ -249,15 +246,20 @@ def ExtractMDP(file_path):
 
 def ExtractCatName(file_path):
     """
+
     Extrait le nom de la rubrique dans une liste.
     Pour l'instant une seule rubrique.
     Renvoie une string.
+
     """
     with open(file_path, "r", encoding='utf-8') as file:
         try:
             content = file.readlines()
         except Exception as e:
-            print(str(file))
+            str_exc = (f"Error in propositions:ExtractCatName \n"
+                       f"An error while opening the file: {e} \n"
+                       f"The path of the file: {str(file_path)}.")
+            raise MyException(str_exc)
         content = "".join(content)
         soup = BeautifulSoup(content, "lxml")
     print_category_soup = soup.find('printcategory')
@@ -306,20 +308,19 @@ def TrouveMDPSim(liste_tuple_mdp, mdp_input):
                 except Exception as e:
                     str_exc = (f"An exception occurs with np.allclose: {e}\n"
                                f"mdp: {mdp}\n"
-                               f"j: {j}, i: {i}"
+                               f"j: {j}, i: {i} \n"
                                f"mdp_input: {mdp_input}")
-                    print(str_exc)
+                    raise MyException(str_exc)
         if nb_correspondances == n:
             mdp_trouve.append((nb_pages, mdp, liste_ids))
     if len(mdp_trouve) == 0:
         stc_exc = "No correspondance found for that MDP:\n{}\n in the BDD."
         raise MyException(stc_exc.format(mdp_input))
     mdp_trouve.sort(key=itemgetter(0), reverse=True)
-    # print('The mdp found in TrouveMDPSim: \n{}\n'.format(mdp_trouve[0][1]))
     return mdp_trouve
 
 
-def ExtrationDataInput(rep_data):
+def ExtractionDataInput(rep_data):
     """
     Extraction des données des xml INPUT.
     Archive de la forme :
@@ -331,13 +332,15 @@ def ExtrationDataInput(rep_data):
     # Extraction des articles
     rep_articles = rep_data + '/' + 'articles'
     for file_path in Path(rep_articles).glob('./**/*'):
-        if 'printCategory' not in file_path:
+        if 'printCategory' not in str(file_path):
             if file_path.suffix == '.xml':
                 try:
                     dict_vector_input = ExtractDicoArtInput(file_path)
                     list_articles.append(dict_vector_input)
                 except Exception as e:
-                    print(f"Error with the extraction of an art. input: {e}")
+                    str_exc = (f"Error in propositions:ExtractionDataInput \n"
+                               f"{e}.\n The path of the file: {file_path}.")
+                    print(str_exc)
     # Extraction du MDP
     dico_mdps = {}
     rep_mdp = rep_data + '/' + 'pageTemplate'
@@ -359,7 +362,7 @@ def ExtrationDataInput(rep_data):
 def SelectionModelesPages(l_model, nb_art, nb_min_pages):
     """
     Sélectionne parmi tous les MDP dans la BDD, ceux qui ont "nb_art" articles
-    et qui sont utilisés pour au moins "nb_min_pages" pages
+    et qui sont utilisés pour au moins "nb_min_pages" pages.
     """
     f = lambda x: (x[1].shape[0] == nb_art) & (x[0] >= nb_min_pages)
     return list(filter(f, l_model))
@@ -367,7 +370,7 @@ def SelectionModelesPages(l_model, nb_art, nb_min_pages):
 
 def CreateXmlPageProposals(liste_page_created, file_out):
     """
-    Liste_page_created est de la forme : 
+    Liste_page_created est de la forme :
         [{MelodyId: X, printCategoryName: X, emp1: X, emp2: X, emp3: X}, ...]
     Crée un fichier xml à l'emplacement "file_out" avec les propositions de
     page. L'architecture du xml est :
@@ -483,12 +486,14 @@ def CreateListeProposalsPage(dict_global_results, mdp_INPUT):
 
 def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features):
     """
+
     ind_features = ['nbSign', 'aireTot', 'aireImg']
     vents_uniq = [(88176, (32234, 28797)), ...]
     Le tri se fait sur le score et les différences entre les articles
     pondérées par les aires des emplcaments
     Il faut renvoyer un objet du type :
         [(score, (id1, id2)), (score, (id1, id2)), (score, (id1, id2))]
+
     """
     # D'abord, on commence par extraire toutes les propositions avec 3
     # ventilations
@@ -555,29 +560,9 @@ def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features):
                 str_exc = "Error product poids * diff_vect: {}\n".format(e)
                 str_exc += "poids: {}.".format(poids)
                 str_exc += "diff_vect: {}.".format(diff_vect)
-                raise MyException(str_exc)       
+                raise MyException(str_exc)
             dist_pages = np.sqrt(np.dot(diff_vect, diff_vect.T))
             score_far += int(dist_pages)
-        """
-        for i, vect_page_1 in enumerate(triplet_vect):
-            for vect_page_2 in triplet_vect[i + 1:]:
-                try:
-                    diff_vect = vect_page_1 - vect_page_2
-                except Exception as e:
-                    str_exc = "Error with diff vector: {}.\n".format(e)
-                    str_exc += "vect_page_1: {}.\n".format(vect_page_1)
-                    str_exc += "vect_page_2: {}.".format(vect_page_2)
-                    raise MyException(str_exc)
-                try:
-                    diff_vect = norm_weights * diff_vect
-                except Exception as e:
-                    str_exc = "Error product poids * diff_vect: {}\n".format(e)
-                    str_exc += "poids: {}.".format(poids)
-                    str_exc += "diff_vect: {}.".format(diff_vect)
-                    raise MyException(str_exc)       
-                dist_pages = np.sqrt(np.dot(diff_vect, diff_vect.T))
-                score_far += int(dist_pages)
-        """
         weighted_list_triplets.append((score_total, score_far, triplet))
     print("{:-^75}".format("WEIGHTED LIST TRIPLETS"))
     print("{:<15} {:^15} {:>25}".format("score total", "score far", "triplet"))
@@ -622,7 +607,7 @@ def ExtractAndComputeProposals(dico_bdd,
 
     Steps of the function:
         - Creates the lists of dictionaries with the articles and the layout.
-        - Determine the pages that can be made with these articles and that 
+        - Determine the pages that can be made with these articles and that
         layout.
         - Create an xml file with the results. The output file associates ids
         of articles with ids of modules.
@@ -638,7 +623,7 @@ def ExtractAndComputeProposals(dico_bdd,
     ind_features = [list_features.index(x) for x in list_to_index]
     print("The path_data_input: {}".format(path_data_input))
     # On met les données extraites dans des listes de dico
-    list_arts_INPUT, mdp_INPUT, rub_INPUT = ExtrationDataInput(path_data_input)
+    list_arts_INPUT, mdp_INPUT, rub_INPUT = ExtractionDataInput(path_data_input)
     # Affichage MDP input
     print("{:-^75}".format("MDP INPUT"))
     for id_mdp, dict_mdp_input in mdp_INPUT.items():
@@ -665,7 +650,7 @@ def ExtractAndComputeProposals(dico_bdd,
         for rub, liste_art in dico_arts_rub_INPUT.items():
             print(rub)
             for art in liste_art:
-                list_prt = [elt for elt in art.items() if elt[0] is not 'blocs']
+                list_prt = [elt for elt in art.items() if elt[0] != 'blocs']
                 print("Les blocs : {}".format(art['blocs']))
                 print("Autre caract : \n{}\n".format(list_prt))
         print("{:-^75}".format("END dico_arts_rub_INPUT"))

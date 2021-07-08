@@ -8,21 +8,13 @@ The dict_pages is of the form:
 The dict_page includes several dictionary or list:
     dict_page = {'arts': ..., 'cartons': ..., ...}.
 
-The arguments of the script are:
-    - file_in ("The repertory with the xml files with the articles.")
-    - file_out ("The repertory where the dictionary will be created.")
-    - --name_dict ("The name of the dictionary.". default='dict_pages')
-    - --save_dict (default=True)
-
 The name of the object created is dict_pages. The absolute path is:
-    file_out/dict_pages.
+    dir_out/dict_pages.
 
 """
-
 from bs4 import BeautifulSoup as bs
 from pathlib import Path
 import numpy as np
-import argparse
 import pickle
 import time
 import re
@@ -30,24 +22,6 @@ import re
 
 class MyException(Exception):
     pass
-
-
-parser = argparse.ArgumentParser(description='Creation dictionary with pages.')
-parser.add_argument('file_in',
-                    help="The repertory with the xml files with the articles.",
-                    type=str)
-parser.add_argument('file_out',
-                    help="The repertory where the dictionary will be created.",
-                    type=str)
-parser.add_argument('--name_dict',
-                    help="The name of the created file.",
-                    type=str,
-                    default='dict_pages')
-parser.add_argument('--save_dict',
-                    help="Whether to save or not the dictionary.",
-                    type=bool,
-                    default=True)
-args = parser.parse_args()
 
 
 def FillDictPage(content_xml, infos_page, file_name):
@@ -109,6 +83,9 @@ def FillDictPage(content_xml, infos_page, file_name):
         if pagetemp is not None:
             dict_page['pageTemplate'] = pagetemp.get('melodyid')
             dict_page['nameTemplate'] = pagetemp.find('name').text
+        else:
+            dict_page['pageTemplate'] = "NoTemplate"
+            dict_page['nameTemplate'] = "NoTemplate"
     except Exception as e:
         print(e, 'FillDictPage : pageTemplate and nameTemplate')
     return dict_page
@@ -324,7 +301,9 @@ def FillDictPhoto(bl_ph_soup):
 
 def ExtrationData(rep_data):
     """
-    Extraction des données des xml
+
+    Extraction des données des xml.
+
     """
     info_extract_pages = []
     # Boucle pour l'extraction des xml
@@ -345,7 +324,7 @@ def ExtrationData(rep_data):
                 except Exception as e:
                     print(e, 'l.265 FillDictCarton', p)
                 # Remplissage des dict ARTICLE
-                dict_page['art'] = []
+                dict_page['articles'] = {}
                 for art_soup in soup.find_all('article'):
                     try:
                         dict_art = FillDictArticle(art_soup)
@@ -357,7 +336,7 @@ def ExtrationData(rep_data):
                             except Exception as e:
                                 print(e, 'l.282', p)
                         dict_art['photo'] = l_dict_photos
-                        dict_page['art'].append(dict_art)
+                        dict_page['articles'][dict_art['melodyId']] = dict_art
                     except Exception as e:
                         print(e, 'l.288', p)
             info_extract_pages.append(dict_page)
@@ -375,51 +354,59 @@ def TestInt(v, ref, lg, ht):
 def DetermPrinc(dict_page):
     """
     Donne le score d'être l'art princ pour chaque article de la page.
+
     """
     probas = []
-    for ind_art, dict_art in enumerate(dict_page['art']):
+    val_dict = dict_page['articles'].values()
+    item_dict = dict_page['articles'].items()
+    print("{:-^80}".format("The values of the dictionary dict_page"))
+    for val in val_dict:
+        print(val)
+    for id_art, dict_art in item_dict:
         p = 0
         # Si nb_col max p += 0.2
-        nb_col = [dict_art['nbCol'] for dict_art in dict_page['art']]
-        ind_max_col = [i for i, col in enumerate(nb_col) if col == max(nb_col)]
-        if ind_art in ind_max_col:
+        nb_col = [(dict_art['nbCol'], ida) for ida, dict_art in item_dict]
+        max_col = max((col for col, _ in nb_col))
+        ind_max_col = [ida for ida, col in nb_col if col == max_col]
+        if id_art in ind_max_col:
             p += 0.2
         # Nb de caractères maximum
-        nb_car = [dict_art['nbSign'] for dict_art in dict_page['art']]
-        ind_max_car = [i for i, col in enumerate(nb_car) if col == max(nb_car)]
-        if ind_art in ind_max_car:
+        nb_car = [(dict_art['nbSign'], ida) for ida, dict_art in item_dict]
+        max_nb_car = max((nbcar for nbcar, _ in nb_car))
+        ids_max_car = [ida for ida, nbcar in nb_car if nbcar == max_nb_car]
+        if id_art in ids_max_car:
             p += 0.10
         # Largeur de l'article
-        larg = [dict_art['width'] for dict_art in dict_page['art']]
-        ind_max_larg = [i for i, lg in enumerate(larg) if lg == max(larg)]
-        if ind_art in ind_max_larg:
+        larg = [(dict_art['width'], ida) for ida, dict_art in item_dict]
+        max_larg = max((w for w, _ in larg))
+        ids_max_larg = [ida for width, ida in larg if width == max_larg]
+        if id_art in ids_max_larg:
             p += 0.15
         # Diminution score s'il existe un article avec plus grande largeur et
         # hauteur
-        dim = [(dict_art['width'], dict_art['height'])
-               for dict_art in dict_page['art']]
-        dim_art = dim[ind_art]
-        ind_sup_dim = [i for i, dim in enumerate(dim)
+        dim = {ida: (dic['width'], dic['height']) for ida, dic in item_dict}
+        dim_art = dim[id_art]
+        ids_sup_dim = [ida for ida, dim in dim.items()
                        if dim[0] >= dim_art[0] and dim[1] >= dim_art[1]]
-        if ind_sup_dim != []:
+        if ids_sup_dim != []:
             p -= 0.2
         # Augmentation de la proba si article le plus haut
-        htr = [dict_art['y'] for dict_art in dict_page['art']]
-        ind_max_htr = [i for i, ht in enumerate(htr) if ht == max(htr)]
-        if ind_art in ind_max_htr:
+        htr = [(dict_art['y'], ida) for ida, dict_art in item_dict]
+        max_htr = max((y for y, _ in htr))
+        ids_max_htr = [ida for y, ida in htr if y == max_htr]
+        if id_art in ids_max_htr:
             p += 0.15
         # Augmentation de la proba si article avec la plus grande aire
-        aires = [dict_art['width'] * dict_art['height']
-                 for dict_art in dict_page['art']]
-        ind_max_aires = [i for i, area in enumerate(aires)
-                         if area == max(aires)]
-        if ind_art in ind_max_aires:
+        aires = [(d['width']*d['height'], ida) for ida, d in item_dict]
+        max_aires = max((aire for aire, _ in aires))
+        ids_max_aires = [ida for area, ida in aires if area == max_aires]
+        if id_art in ids_max_aires:
             p += 0.15
         # Détermination si l'article possède un/des article(s) lié(s)
         coord_art = (dict_art['x'], dict_art['y'])
         largeur = dict_art['width']
         hauteur = dict_art['height']
-        coord = [(dict_art['x'], dict_art['y']) for dict_art in dict_page['art']]
+        coord = [(dict_art['x'], dict_art['y']) for dict_art in val_dict]
         try:
             coord.remove(coord_art)
         except:
@@ -458,40 +445,33 @@ def DetermPrinc(dict_page):
         if dict_art['exergue'] > 0:
             p += 0.05
         # PetitTitre et InterTitre
-        try:
-            if 'intertitre' in dict_art['typeBlock']:
-                p += 0.05
-            if 'petittitre' in dict_art['typeBlock']:
-                p += 0.05
-        except Exception as e:
-            print(e, 'l.405')
+        if 'intertitre' in dict_art['typeBlock']:
+            p += 0.05
+        if 'petittitre' in dict_art['typeBlock']:
+            p += 0.05
         # Position_Article
         if dict_art['posArt'] > 0:
             p += 0.2
-        probas.append((round(p, 2), (dict_art['x'], dict_art['y'])))
+        probas.append((round(p, 2), id_art))
         dict_art['score'] = p
     # En cas d'égalité
-    pmax = max(probas) if probas != [] else 10
-    ind_max = [i for i, p in enumerate(probas) if p == pmax]
-    if len(ind_max) > 1:
+    pmax = max(probas)[0]
+    ids_max = [ida for proba, ida in probas if proba == pmax]
+    if len(ids_max) > 1:
         # Il faut prendre l'article le plus haut
-        htrs = [dict_art['y']
-                for i, dict_art in enumerate(dict_page['art'])
-                if i in ind_max]
-        ind_max_htr = [i for i, h in enumerate(htrs) if h == max(htrs)]
-        if len(ind_max_htr) > 1:
+        htrs = [(x['y'], ida) for ida, x in item_dict if ida in ids_max]
+        max_htrs = max(htrs)
+        ids_max_htr = [ida for htr, ida in htrs if htr == max_htrs]
+        if len(ids_max_htr) > 1:
             # Cas où 2 articles même hauteur même score -> le plus large
-            larg = [dict_art['x']
-                    for i, dict_art in enumerate(dict_page['art'])
-                    if i in ind_max_htr]
-            art_princ = larg.index(max(larg))
+            lg = [(x['x'], ida) for ida, x in item_dict if ida in ids_max_htr]
+            id_art_p = max(lg, key=lambda x: x[0])[1]
         else:
-            art_princ = htrs.index(max(htrs))
+            id_art_p = ids_max_htr[0]
     else:
-        art_princ = probas.index(max(probas)) if probas != [] else None
+        id_art_p =  ids_max[0]
     # Mise à jour de l'attribut isPrinc
-    if art_princ is not None:
-        dict_page['art'][art_princ]['isPrinc'] = 1
+    dict_page['articles'][id_art_p]['isPrinc'] = 1
     return dict_page
 
 
@@ -499,7 +479,7 @@ def DetermAire(dict_page):
     """
     Mise à jour de l'élément art.aire dans {1, 2, 3}.
     """
-    for dict_art in dict_page['art']:
+    for dict_art in dict_page['articles'].values():
         aire_art = dict_art['width'] * dict_art['height']
         if aire_art < 19600:
             dict_art['aire'] = 1
@@ -514,7 +494,7 @@ def DetermAireImg(dict_page):
     """
     Mise à jour de l'élément aire photo.
     """
-    for dict_art in dict_page['art']:
+    for dict_art in dict_page['articles'].values():
         for dict_img in dict_art['photo']:
             aire_img = dict_img['width'] * dict_img['height']
             if aire_img < 7000:
@@ -532,12 +512,12 @@ def Update(dict_page):
 
     """
     # score et isPrinc
-    try:
-        dict_page = DetermPrinc(dict_page)
-    except Exception as e:
-        str_exc = (f"An error with Update:DeterPrinc: {e}\n"
-                   f"dict_page: {dict_page}")
-        raise MyException(str_exc)
+
+    dict_page = DetermPrinc(dict_page)
+    #except Exception as e:
+        #str_exc = (f"An error with Update:DetermPrinc: {e}\n"
+                   #f"dict_page: {dict_page}")
+        #raise MyException(str_exc)
 
     # distToPrinc
     try:
@@ -581,7 +561,7 @@ def Update(dict_page):
 
     # art['petittitre'], art['intertitre'], art['quest_rep']
     try:
-        for dict_art in dict_page['art']:
+        for dict_art in dict_page['articles'].values():
             if 'intertitre' in dict_art['typeBlock']:
                 dict_art['intertitre'] = 1
             else:
@@ -598,7 +578,7 @@ def Update(dict_page):
                 dict_art['quest_rep'] = 0
     except Exception as e:
         str_exc = (f"An error with the last 3 features: {e}\n"
-                   f"The dict_page['art']: {dict_page['art']}")
+                   f"The dict_page['articles']: {dict_page['articles']}")
         raise MyException(str_exc)
     return dict_page
 
@@ -619,7 +599,7 @@ def Determ_Nat_Art(dict_page):
     """
     À utiliser une fois que les élmts score, distToPrinc sont remplis.
     """
-    for dict_art in dict_page['art']:
+    for dict_art in dict_page['articles'].values():
         if dict_art['isPrinc'] == 0:
             if dict_art['score'] <= 0.05:
                 # Si img : ter, sinon : minor
@@ -649,8 +629,10 @@ def DicoDoc(liste_mots):
 
 def ConvTxt(l_mots, txt_lem):
     """
+
     l_mots correspond à tous les mots du corpus.
     Convertit un texte en vecteur numérique.
+
     """
     # La taille des vecteurs
     n = len(l_mots)
@@ -674,11 +656,12 @@ def DistanceCosTuple(dict_page):
     """
     # Trouver l'article principal
     text_ref = ''
-    for dict_article in dict_page['art']:
+    val_dict = dict_page['articles'].values()
+    for dict_article in val_dict:
         if dict_article['isPrinc'] == 1:
             text_ref = dict_article['content']
             break
-    corpus = [dict_article['content'] for dict_article in dict_page['art']]
+    corpus = [dict_article['content'] for dict_article in val_dict]
     dico = DicoCorpus(corpus)
     l_mots = [clef for clef in dico.keys()]
     # Il faut que le dernier élément de corpus soit le text_ref
@@ -688,7 +671,7 @@ def DistanceCosTuple(dict_page):
     N = len(Vect)
     norme1 = np.sqrt(np.dot(Vect[N - 1], Vect[N - 1]))
     i = 0
-    for text, dict_art in zip(corpus, dict_page['art']):
+    for text, dict_art in zip(corpus, val_dict):
         # Le texte live est rajouté à la fin, d'où le N - 1.
         prod_scalaire = np.dot(Vect[N - 1], Vect[i])
         norme2 = np.sqrt(np.dot(Vect[i], Vect[i]))
@@ -709,7 +692,7 @@ def UpdateNew(dict_pages):
     # Rajout de l'élément prop_art à chaque ntuple_page
     for dict_page in dict_pages:
         aire_img_tot, nbcar_tot, nbimg_tot, aire_tot = 0, 0, 0, 0
-        for dict_art in dict_page['art']:
+        for dict_art in dict_page['articles'].values():
             aire_tot += dict_art['width'] * dict_art['height']
             nbcar_tot += dict_art['nbSignTxt']
             nbimg_tot += dict_art['nbPhoto']
@@ -730,7 +713,7 @@ def GetDistributionPage(dict_page):
     Renvoie la répartition du type d'articles dans la page.
     """
     rep = [0, 0, 0, 0]
-    for dict_art in dict_page['art']:
+    for dict_art in dict_page['articles'].values():
         if dict_art['isPrinc'] == 1:
             rep[0] += 1
         elif sum([dict_art['isSec'], dict_art['isSub']]) > 0:
@@ -758,7 +741,7 @@ def CreationBDD(list_dict_pages):
     dico_bdd = {}
     for dict_page in list_dict_pages:
         try:
-            if len(dict_page['art']) > 0:
+            if len(dict_page['articles']) > 0:
                 id_p = dict_page['melodyId']
                 dico_bdd[id_p] = dict_page
         except Exception as e:
@@ -778,7 +761,7 @@ def UpdateAireImg(dict_art):
 
 
 def UpdateAllAireImg(dict_page):
-    for dict_art in dict_page['art']:
+    for dict_art in dict_page['articles'].values():
         dict_art = UpdateAireImg(dict_art)
     return dict_page
 
@@ -809,29 +792,25 @@ def ShowElementsDicoBDD(dico_bdd):
 ##############################################################################
 
 
-t0 = time.time()
-list_dict_pages = ExtrationData(args.file_in)
-print(f"ExtrationData duration: {time.time() - t0} sec.")
+def CreationDictPages(rep_data, dir_out, save_dict=True):
+    t0 = time.time()
+    list_dict_pages = ExtrationData(rep_data)
+    print(f"ExtrationData duration: {time.time() - t0} sec.")
 
-t0 = time.time()
-list_dict_pages = UpdateAll(list_dict_pages)
-print("UpdateAll : {:.2f} sec".format(time.time() - t0))
+    t1 = time.time()
+    list_dict_pages = UpdateAll(list_dict_pages)
+    print("UpdateAll : {:.2f} sec".format(time.time() - t1))
 
-# Pour les signatures
-t0 = time.time()
-list_dict_pages = UpdateNew(list_dict_pages)
-print("UpdateNew: {:.2f} sec".format(time.time() - t0))
+    t2 = time.time()
+    list_dict_pages = UpdateNew(list_dict_pages)
+    print("UpdateNew: {:.2f} sec".format(time.time() - t2))
 
-t0 = time.time()
-dico_bdd = CreationBDD(list_dict_pages)
-print("CreationBDD: {:.2f} sec".format(time.time() - t0))
+    t3 = time.time()
+    dico_bdd = CreationBDD(list_dict_pages)
+    print("CreationBDD: {:.2f} sec".format(time.time() - t3))
 
-ShowElementsDicoBDD(dico_bdd)
+    ShowElementsDicoBDD(dico_bdd)
 
-if args.save_dict:
-    if args.file_out[-1] == '/':
-        file_out = args.file_out
-    else:
-        file_out = args.file_out + '/'
-    with open(file_out + args.name_dict, 'wb') as f:
-        pickle.dump(dico_bdd, f)
+    if save_dict:
+        with open(dir_out + 'dict_pages', 'wb') as f:
+            pickle.dump(dico_bdd, f)

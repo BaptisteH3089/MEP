@@ -14,10 +14,10 @@ path_cm = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM/'
 with open(path_cm + 'dict_layouts', 'rb') as f:
     dict_layouts = pickle.load(f)
 # Loading dictionary with all the pages
-with open(path_cm + 'dico_pages', 'rb') as f:
+with open(path_cm + 'dict_pages', 'rb') as f:
     dict_pages = pickle.load(f)
 # Loading dictionary with all the articles
-with open(path_cm + 'dico_arts', 'rb') as f:
+with open(path_cm + 'dict_arts', 'rb') as f:
     dict_arts = pickle.load(f)
 
 # First, we isolate layouts with the same number of modules (between 2 and 8)

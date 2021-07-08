@@ -8,20 +8,20 @@ import pickle
 import re
 
 
-def FillDicoPage(ntuple_page, content_xml, page_soup, file_name):
+def FillDicoPage(content_xml, page_soup, file_name):
     dico_page = {}
     dico_page['pageName'] = str(file_name)
-    dico_page['melodyId'] = int(infos_page.get('melodyid'))
-    dico_page['cahierCode'] = infos_page.get('cahiercode')
-    dico_page['customerCode'] = infos_page.get('customercode')
-    dico_page['pressTitleCode'] = infos_page.get('presstitlecode')
-    dico_page['editionCode'] = infos_page.get('editioncode')
-    dico_page['folio'] = int(infos_page.get('folio'))
-    dico_page['width'] = int(infos_page.get('docwidth'))
-    dico_page['height'] = int(infos_page.get('docheight'))
-    dico_page['paddingTop'] = int(infos_page.get('paddingtop'))
-    dico_page['paddingLeft'] = int(infos_page.get('paddingleft'))
-    dico_page['catName'] = infos_page.get('printcategoryname')
+    dico_page['melodyId'] = int(page_soup.get('melodyid'))
+    dico_page['cahierCode'] = page_soup.get('cahiercode')
+    dico_page['customerCode'] = page_soup.get('customercode')
+    dico_page['pressTitleCode'] = page_soup.get('presstitlecode')
+    dico_page['editionCode'] = page_soup.get('editioncode')
+    dico_page['folio'] = int(page_soup.get('folio'))
+    dico_page['width'] = int(page_soup.get('docwidth'))
+    dico_page['height'] = int(page_soup.get('docheight'))
+    dico_page['paddingTop'] = int(page_soup.get('paddingtop'))
+    dico_page['paddingLeft'] = int(page_soup.get('paddingleft'))
+    dico_page['catName'] = page_soup.get('printcategoryname')
     dico_page['nbArt'] = len(content_xml.find_all('article'))
     pagetemp = content_xml.find('pagetemplate')
     if pagetemp is not None:
@@ -302,7 +302,7 @@ def ConvTxtIntoVect(l_mots, txt_lem):
 def DistanceCosTuple(dico_page):
     """
     Calcul les distances entre le txt_lem et le sous-cp obtenu.
-    Mise à jour de l'élément : 
+    Mise à jour de l'élément :
         - distToPrinc
     Étape nécessaire pour déterminer le type des articles (mineurs, sec, ...)
     """

@@ -23,7 +23,7 @@ class MyException(Exception):
 app = Flask(__name__)
 api = Api(app)
 
-# ARG PARSER - SERVOR. Initilisation of the arguements of the script 
+# ARG PARSER - SERVOR. Initilisation of the arguements of the script
 # montage_ia.xml for the start webservice montage IA.
 main_parser = argparse.ArgumentParser(description='Lancmt servor montageIA')
 main_parser.add_argument('customer_code',
@@ -74,11 +74,11 @@ else:
 
 # Opening of the Database with the archive files of that client
 try:
-    with open(path_customer + 'dico_pages', 'rb') as file:
+    with open(path_customer + 'dict_pages', 'rb') as file:
         dico_bdd = pickle.load(file)
 except Exception as e:
     logger.error(e, exc_info=True)
-    logger.debug('Path to dico_bdd: {}'.format(path_customer + 'dico_pages'))
+    logger.debug('Path to dict_bdd: {}'.format(path_customer + 'dict_pages'))
 # Opening of the list of the page layouts used by this client
 try:
     with open(path_customer + 'list_mdp', 'rb') as file:
@@ -88,11 +88,11 @@ except Exception as e:
     logger.debug('Path to list_mdp: {}'.format(path_customer + 'list_mdp'))
 # The dict {ida: dicoa, ...}
 try:
-    with open(path_customer + 'dico_arts', 'rb') as file:
+    with open(path_customer + 'dict_arts', 'rb') as file:
         dict_arts = pickle.load(file)
 except Exception as e:
     logger.error(e, exc_info=True)
-    logger.debug('Path to dico_arts: {}'.format(path_customer + 'dico_arts'))
+    logger.debug('Path to dict_arts: {}'.format(path_customer + 'dict_arts'))
 # The Gradient Boosting Classifier trained with pages with 2 articles
 try:
     with open(path_customer + 'gbc2', 'rb') as file:
@@ -127,7 +127,7 @@ dict_gbc = {2: gbc2, 3: gbc3, 4: gbc4, 5: gbc5}
 # Loading dictionary with all the pages
 with open(path_customer + 'dict_page_array', 'rb') as f:
     dict_page_array = pickle.load(f)
-    
+
 # Loading dictionary with all the layouts with an MelodyId
 with open(path_customer + 'dict_layouts_small', 'rb') as f:
     dict_layouts = pickle.load(f)
@@ -189,6 +189,8 @@ class GetLayout(Resource):
             logger.error(e, exc_info=True)
         return "{:-^35.2f} sec".format(time.time() - t0)
 
+
+COUNTER = 0
 
 class AddPage(Resource):
     """
