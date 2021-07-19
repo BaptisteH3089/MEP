@@ -82,7 +82,7 @@ def CreationListLayouts(dict_pg_ar_fast):
                     if recover_true_layout.CompareTwoLayouts(*args):
                         list_layout[0] += 1
                         list_layout[2].append(idpage2)
-                    list_tuple_layout.append(list_layout)
+                list_tuple_layout.append(list_layout)
                 if i % (n // 100) == 0:
                     print(f"CreationListLayouts {nb_modules}: {i/n:.2%}")
     return list_tuple_layout

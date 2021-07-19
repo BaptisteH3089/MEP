@@ -164,10 +164,10 @@ class GetLayout(Resource):
                 str_exc = (f"Error with os.path.basename(): {e}\n"
                            "file_in: {file_in}")
                 raise MyException(str_exc)
-            with zipfile.ZipFile(file_in, "r") as z:
-                z.extractall(dir_file_in + "/input")
             # We remove the .zip in the basename_file_in
             path_data_input = dir_file_in + '/input/' + basename_file_in[:-4]
+            with zipfile.ZipFile(file_in, "r") as z:
+                z.extractall(path_data_input)
             print(f"path_data_input: {path_data_input}")
             directories = os.listdir(path_data_input)
             print(f"directories: {directories}")

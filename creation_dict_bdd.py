@@ -359,9 +359,9 @@ def DetermPrinc(dict_page):
     probas = []
     val_dict = dict_page['articles'].values()
     item_dict = dict_page['articles'].items()
-    print("{:-^80}".format("The values of the dictionary dict_page"))
-    for val in val_dict:
-        print(val)
+    #print("{:-^80}".format("The values of the dictionary dict_page"))
+    #for val in val_dict:
+        #print(val)
     for id_art, dict_art in item_dict:
         p = 0
         # Si nb_col max p += 0.2
@@ -455,12 +455,14 @@ def DetermPrinc(dict_page):
         probas.append((round(p, 2), id_art))
         dict_art['score'] = p
     # En cas d'égalité
-    pmax = max(probas)[0]
+    pmax = max(probas, default=(0, 0))[0]
+    if pmax == 0:
+        return dict_page
     ids_max = [ida for proba, ida in probas if proba == pmax]
     if len(ids_max) > 1:
         # Il faut prendre l'article le plus haut
         htrs = [(x['y'], ida) for ida, x in item_dict if ida in ids_max]
-        max_htrs = max(htrs)
+        max_htrs = max(htrs)[0]
         ids_max_htr = [ida for htr, ida in htrs if htr == max_htrs]
         if len(ids_max_htr) > 1:
             # Cas où 2 articles même hauteur même score -> le plus large

@@ -94,8 +94,8 @@ with open(dir_customer + 'dict_page_array','rb') as f:
 
 x = str(input("Creation of dict_page_array_fast ? y/n "))
 if x == 'y':
-    args = [dict_page_array, dir_customer]
-    creation_dict_page_array_fast.CreationDictPageArrayFast(*args)
+    args_fast = [dict_page_array, dir_customer]
+    creation_dict_page_array_fast.CreationDictPageArrayFast(*args_fast)
 
 # Finally, list_mdp_data if we want to wait...
 with open(dir_customer + 'dict_page_array_fast', 'rb') as file:

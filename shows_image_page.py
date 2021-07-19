@@ -8,6 +8,10 @@ Created on Fri Jul  2 14:24:21 2021
 Script used to represent the layouts or the pages.
 Mainly used to see if the ids of the layouts associated to the pages are
 coherent.
+You can have a basic representation of the page/layout by giving an id of
+page/layout in the database.
+It is also possible to use RepPageSlide() with the zonning of the articles if
+you don't have the id.
 
 """
 import matplotlib.pyplot as plt
@@ -41,7 +45,8 @@ def RepPageSlide(zonning_arts,
                  txt=False,
                  l_car_art=None,
                  title=None,
-                 dico_colors=None):
+                 dico_colors=None,
+                 dico_colors_edge=None):
     figure = plt.figure(figsize = (10, 15))
     plt.gcf().subplots_adjust(0, 0, 1, 1)
     axes = figure.add_subplot(111)
