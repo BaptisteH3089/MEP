@@ -1,50 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import pickle
+"""
+@author: Baptiste Hessel
+
+Contains the functions relative to the part where there is no layout input.
+
+"""
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 import xml.etree.cElementTree as ET
 from pathlib import Path
 from operator import itemgetter
 import time
-import os
-os.chdir('/Users/baptistehessel/Documents/DAJ/MEP/montageIA/bin/')
+import recover_true_layout
 import propositions
 import methods
-import recover_true_layout
+
 
 class MyException(Exception):
     pass
-
-path_customer = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM/'
-
-# The dict with all the pages available
-with open(path_customer + 'dict_pages', 'rb') as file:
-    dico_bdd = pickle.load(file)
-# The dict {ida: dicoa, ...}
-with open(path_customer + 'dict_arts', 'rb') as file:
-    dict_arts = pickle.load(file)
-# The list of triplet (nb_pages_using_mdp, array_mdp, list_ids)
-with open(path_customer + 'list_mdp', 'rb') as file:
-    list_mdp_data = pickle.load(file)
-# The dictionary with the gradient boosting classifiers
-with open(path_customer + 'gbc2', 'rb') as file:
-    gbc2 = pickle.load(file)
-with open(path_customer + 'gbc3', 'rb') as file:
-    gbc3 = pickle.load(file)
-with open(path_customer + 'gbc4', 'rb') as file:
-    gbc4 = pickle.load(file)
-with open(path_customer + 'gbc5', 'rb') as file:
-    gbc5 = pickle.load(file)
-# Loading dictionary with all the pages
-with open(path_customer + 'dict_page_array', 'rb') as f:
-    dict_page_array = pickle.load(f)
-# Loading dictionary with all the pages
-with open(path_customer + 'dict_layouts_small', 'rb') as f:
-    dict_layouts = pickle.load(f)
-
-
-dict_gbc = {2: gbc2, 3: gbc3, 4: gbc4, 5: gbc5}
 
 
 def ConstraintArea(all_ntuple):
@@ -200,7 +174,13 @@ def CreationXY(vect_XY, dict_labels):
                     except:
                         print("ERROR")
                         print(big_Y, label)
-    return big_X, np.array(big_Y)
+    # For now, there is an issue with big_Y since we can have something like :
+    # set(big_Y) = {0, 1, 4, 5, 8}
+    # I want to have set(big_Y) = {0, 1, 2, 3, 4}
+    dict_corres_labels = {label: i for i, label in enumerate(set(big_Y))}
+    better_big_Y = [dict_corres_labels[label] for label in big_Y]
+    print(f"without_layout:CreationXY set(better_big_Y): {set(better_big_Y)}")
+    return big_X, np.array(better_big_Y)
 
 
 def CreateXYFromScratch(dico_bdd,
@@ -980,5 +960,5 @@ list_features += ['petittitre', 'quest_rep', 'intertitre']
 path_mep = '/Users/baptistehessel/Documents/DAJ/MEP/'
 file_in = path_mep + 'ArticlesOptions/'
 file_out = path_mep + 'montageIA/out/outNoLayout.xml'
-args = [file_in, file_out, dico_bdd, dict_arts, list_mdp_data, dict_gbc]
+# args = [file_in, file_out, dico_bdd, dict_arts, list_mdp_data, dict_gbc]
 # FinalResultsMethodNoLayout(*args)

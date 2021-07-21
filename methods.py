@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+@author: Baptiste Hessel
+
+Contains some important functions relative to the process of creation of new
+pages and the filtering of the articles. For example, it contains the
+functions:
+    - MethodeNaive()
+    - MethodeMLV()
+"""
 from sklearn.ensemble import RandomForestClassifier
 import numpy as np
 from operator import itemgetter
@@ -74,7 +83,7 @@ def GetVectorArticleInput(dico_vector_input, features):
         else:
             vector_art.append(dico_vector_input[feature])
     return (dico_vector_input['melodyId'], np.array([vector_art]))
-    
+
 
 def GetTrainableData(dico_bdd, list_id_pages, y_ref, features):
     """
@@ -276,7 +285,7 @@ def FiltreArticles(dico_id_artv, aire_tot_cart, aire_img_cart, ind_features):
         - suppression condition aire img < 2/3 * area_mdp
     """
     ind_nb_sign = ind_features[0]
-    # ind_aire_tot_art 
+    # ind_aire_tot_art
     tot = ind_features[1]
     # ind_area_img_art
     img = ind_features[2]
@@ -416,7 +425,7 @@ def FiltreBlocs(dict_mdp_input, list_articles_input, dico_cartons, emp):
     """
     Retourne les articles dont les labels des blocs correspondent à ceux des
     cartons
-    dict_mdp_input = {'3764': 
+    dict_mdp_input = {'3764':
         {'x': 15, 'y': 323, 'width': 280, 'height': 126,
         'nbCol': 6, 'nbImg': 1, 'aireTotImgs': 8494,
         'listeAireImgs': [8494], 'aireTot': 44607,
@@ -462,7 +471,7 @@ def MethodeNaive(mdp_ref, X_nbImg, X_input, dico_id_artv, ind_features,
     """
     Renvoie des ventilations en se basant sur le nb d'images dans les cartons
     et l'aire du carton par rapport au nombre de signes des articles et à
-    l'aire totale des images. 
+    l'aire totale des images.
     Pour faire simple, donne toutes les possibilités de placements tq les
     articles correspondent à peu près aux cartons
     ind_features = [ind_nb_sign, ind_aire_tot, ind_area_img]

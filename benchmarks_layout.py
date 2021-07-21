@@ -3,7 +3,7 @@
 """
 @author: baptistehessel
 
-Script that show the results obtained with the model that predicts the layout
+Script that shows the results obtained with the model that predicts the layout
 for an article.
 
 Objects necessary:
@@ -29,6 +29,9 @@ import time
 import numpy as np
 import pickle
 import argparse
+import xgboost as xgb
+import warnings
+
 
 class MyException(Exception):
     pass
@@ -45,14 +48,20 @@ parser.add_argument('nb_arts_layout',
                     help='Select the layouts with this number of articles.')
 args = parser.parse_args()
 
+# Standardize path_customer
+if args.path_customer[-1] == '/':
+    path_customer = args.path_customer
+else:
+    path_customer = args.path_customer + '/'
+
 # The dict with all the pages available
-with open(args.path_customer + 'dict_pages', 'rb') as file:
+with open(path_customer + 'dict_pages', 'rb') as file:
     dico_bdd = pickle.load(file)
 # The dict {ida: dicoa, ...}
-with open(args.path_customer + 'dict_arts', 'rb') as file:
+with open(path_customer + 'dict_arts', 'rb') as file:
     dict_arts = pickle.load(file)
 # The list of triplet (nb_pages_using_mdp, array_mdp, list_ids)
-with open(args.path_customer + 'list_mdp', 'rb') as file:
+with open(path_customer + 'list_mdp', 'rb') as file:
     list_mdp_data = pickle.load(file)
 
 
@@ -139,9 +148,23 @@ def TrainValidateModel(X, Y):
     mean_sgd, mean_gnb = [], []
     mean_logrepnop = []
     mean_gbc = []
+    mean_xgb = []
     dict_duration = {}
     ss = ShuffleSplit(n_splits=4)
     for i, (train, test) in enumerate(ss.split(X, Y)):
+        # XGBoost
+        t_xgb = time.time()
+        dtrain = xgb.DMatrix(X[train], label=Y[train])
+        dtest = xgb.DMatrix(X[test], label=Y[test])
+        param = {'objective': 'multi:softmax',
+                 'num_class': max(set(Y)) + 1,
+                 'eval_metric': 'mlogloss'}
+        print(f"param['num_class']: {param['num_class']}")
+        bst = xgb.train(param, dtrain, num_boost_round=15)
+        preds_xgb = bst.predict(dtest)
+        score_xgb = f1_score(Y[test], preds_xgb, average='macro')
+        mean_xgb.append(score_xgb)
+        dict_duration['xgb'] = time.time() - t_xgb
         # Random Forest
         t_rfc = time.time()
         rdc = RandomForestClassifier().fit(X[train], Y[train])
@@ -197,6 +220,7 @@ def TrainValidateModel(X, Y):
         mean_gbc.append(score_gbc)
         dict_duration['gbc'] = time.time() - t_gbc
         print("FOLD: {}.".format(i))
+        print("{:<50} {:>30.4f}.".format("score XGBoost", score_xgb))
         print("{:<50} {:>30.4f}.".format("score rdmForest", score_rdc))
         print("{:<50} {:>30.4f}.".format("score GBC", score_gbc))
         print("{:<50} {:>30.4f}.".format("score SVC", score_svc))
@@ -206,9 +230,9 @@ def TrainValidateModel(X, Y):
         print("{:<50} {:>30.4f}.".format("score Log", score_logregnop))
         print('\n')
     all_means = [mean_rdc, mean_svc, mean_lsvc, mean_sgd, mean_gnb]
-    all_means += [mean_logrepnop, mean_gbc]
+    all_means += [mean_logrepnop, mean_gbc, mean_xgb]
     str_means = ['mean_rdc', 'mean_svc','mean_lsvc', 'mean_sgd', 'mean_gnb']
-    str_means += ['mean_logrepnop', 'mean_gbc']
+    str_means += ['mean_logrepnop', 'mean_gbc', 'mean_xgb']
     print(("{:-^80}".format("GLOBAL MEANS")))
     for list_mean, str_mean in zip(all_means, str_means):
         print("{:<35} {:>15.3f}".format(str_mean, np.mean(list_mean)))
@@ -320,8 +344,10 @@ def FilterSmallClasses(X, Y, dict_nblabels, min_nb):
                     Yn = [elt_Y]
                     Xn = np.array(line_X, ndmin=2)
                     init = True
-    Yn = np.array(Yn)
-    return Xn, Yn
+    # Deletion of the holes in the labels
+    dict_corres_labels = {label: i for i, label in enumerate(set(Yn))}
+    better_Yn = [dict_corres_labels[label] for label in Yn]
+    return Xn, np.array(better_Yn)
 
 
 list_features = ['nbSign', 'nbBlock', 'abstract', 'syn']
@@ -340,7 +366,7 @@ list_vect_page = CreationListVectorsPage(final_obj, dict_arts, list_features)
 
 # Now, I train the model. Well, first the matrices
 for min_nb in [10, 30, 50]:
-    print("{:*^80}".format(f"min number of pages per layout={min_nb}"))
+    print("\n{:*^80}\n".format(f"min number of pages per layout={min_nb}"))
     args_cr = [dico_bdd, dict_arts, list_mdp_data, nb_arts, min_nb]
     args_cr += [list_features]
     X, Y, dict_labels = without_layout.CreateXYFromScratch(*args_cr)
@@ -355,7 +381,9 @@ for min_nb in [10, 30, 50]:
     print("{:-^70}".format("Nb of classes: {}".format(len(dict_nblabelsn))))
     tot_pages = sum(dict_nblabelsn.values())
     print("{:-^70}".format("Nb of pages: {}".format(tot_pages)))
-    TrainValidateModel(Xn, Yn)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        TrainValidateModel(Xn, Yn)
     args = ["The duration for", nb_arts, min_nb, time.time() - t0]
     print("{} {} articles and min_nb={}. {} sec.".format(*args))
 

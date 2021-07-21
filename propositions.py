@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+@author: Baptiste Hessel
+
+Contains the main functions relative to the part with a layout input.
+
+"""
 from pathlib import Path
 from bs4 import BeautifulSoup
 from operator import itemgetter
@@ -7,7 +13,6 @@ import xml.etree.cElementTree as ET
 import numpy as np
 import methods
 import re
-
 
 
 # Classe pour écrire des exceptions personnalisées

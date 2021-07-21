@@ -90,7 +90,10 @@ def CreationListLayouts(dict_pg_ar_fast):
 
 def CreationListMdp(dict_page_array_fast, path_customer, save_list=True):
     t0 = time.time()
+    nb_exc = 0
     list_tuple_layout = CreationListLayouts(dict_page_array_fast)
+    # Intermediary list used to find the indexes of some elements.
+    list_listids = [list_ids for _, _, list_ids in list_tuple_layout]
     print(f"Duration CreationListLayouts: {time.time() - t0} sec.")
     for i, (nb_pages, array_lay, list_ids) in enumerate(list_tuple_layout):
         print(f"The number of pages: {nb_pages}")
@@ -113,7 +116,18 @@ def CreationListMdp(dict_page_array_fast, path_customer, save_list=True):
                 # We add all these ids.
                 list_ids += tuple_found[2]
                 # We delete the tuple_found.
-                list_tuple_layout.remove(tuple_found)
+                ### list_tuple_layout.remove(tuple_found)
+                try:
+                    index_tuple_found = list_listids.index(tuple_found[2])
+                    # We delete the elements in both lists
+                    list_tuple_layout.pop(index_tuple_found)
+                    list_listids.pop(index_tuple_found)
+                except Exception as e:
+                    str_exc = f"An exception while poping tuple_found: {e}\n"
+                    str_exc += f"The tuple found: \n{tuple_found}\n"
+                    nb_exc += 1
+                    if nb_exc < 5:
+                        print(str_exc)
         # We delete duplicates in the list_ids.
         list_ids = list(set(list_ids))
     print(f"Duration removal duplicates: {time.time() - t1} sec.")

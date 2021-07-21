@@ -5,8 +5,9 @@ Created on Fri Jul  2 16:31:44 2021
 
 @author: baptistehessel
 
-Just some code to see if we can associate a true layout to the array
-associated to a page.
+Just some code to see if we can associate a true layout to an array
+associated to a page. Sometimes, we find a correspondance, but two layouts
+with the same MelodyId can be significantly different.
 
 """
 import pickle

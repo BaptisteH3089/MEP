@@ -10,14 +10,22 @@ import numpy as np
 import argparse
 
 """
+@author: baptistehessel
+
+Script that cross-validates and saves the wanted model. It is also possible
+to perform a grid_search to find the best combinations of parameters.
+
 Eventually I can check if it's better when I increase the number of features.
 """
 
 # ARG PARSER - SERVOR. Initilisation of the arguements of the script
 # montage_ia.xml for the start webservice montage IA.
 parser = argparse.ArgumentParser(description='Models used to predict layouts.')
+parser.add_argument('path_customer',
+                    help='the path to the data.',
+                    type=str)
 parser.add_argument('--selected_models',
-                    help="The models to consider.",
+                    help="The model(s) to consider.",
                     type=int,
                     nargs='+',
                     default=3)
@@ -53,16 +61,20 @@ list_features += ['exergue', 'title', 'secTitle', 'supTitle']
 list_features += ['subTitle', 'nbPhoto', 'aireImg', 'aireTot']
 list_features += ['petittitre', 'quest_rep', 'intertitre']
 
-path_cm = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM/'
+if args.path_customer[-1] == '/':
+    path_customer = args.path_customer
+else:
+    path_customer = args.path_customer + '/'
+
 
 # The dict with all the pages available
-with open(path_cm + 'dict_pages', 'rb') as file:
+with open(path_customer + 'dict_pages', 'rb') as file:
     dico_bdd = pickle.load(file)
 # The dict {ida: dicoa, ...}
-with open(path_cm + 'dict_arts', 'rb') as file:
+with open(path_customer + 'dict_arts', 'rb') as file:
     dict_arts = pickle.load(file)
 # The list of triplet (nb_pages_using_mdp, array_mdp, list_ids)
-with open(path_cm + 'list_mdp', 'rb') as file:
+with open(path_customer + 'list_mdp', 'rb') as file:
     list_mdp_data = pickle.load(file)
 
 
@@ -187,10 +199,10 @@ if dict_model[3]:
     if args.save_model:
         if args.grid_search:
             gbc3 = GradientBoostingClassifier(**clf.best_params_).fit(X, Y)
-            with open(path_cm + 'gbc3', 'wb') as f: pickle.dump(gbc3, f)
+            with open(path_customer + 'gbc3', 'wb') as f: pickle.dump(gbc3, f)
         else:
             gbc3 = GradientBoostingClassifier().fit(X, Y)
-            with open(path_cm + 'gbc3', 'wb') as f: pickle.dump(gbc3, f)
+            with open(path_customer + 'gbc3', 'wb') as f: pickle.dump(gbc3, f)
 
 
 ##############################################################################
@@ -240,10 +252,10 @@ if dict_model[4]:
     if args.save_model:
         if args.grid_search:
             gbc4 = GradientBoostingClassifier(**clf.best_params_).fit(X, Y)
-            with open(path_cm + 'gbc4', 'wb') as f: pickle.dump(gbc4, f)
+            with open(path_customer + 'gbc4', 'wb') as f: pickle.dump(gbc4, f)
         else:
             gbc4 = GradientBoostingClassifier().fit(X, Y)
-            with open(path_cm + 'gbc4', 'wb') as f: pickle.dump(gbc4, f)
+            with open(path_customer + 'gbc4', 'wb') as f: pickle.dump(gbc4, f)
 
 
 ##############################################################################
@@ -293,8 +305,8 @@ if dict_model[5]:
     if args.save_model:
         if args.grid_search:
             gbc5 = GradientBoostingClassifier(**clf.best_params_).fit(X, Y)
-            with open(path_cm + 'gbc5', 'wb') as f: pickle.dump(gbc5, f)
+            with open(path_customer + 'gbc5', 'wb') as f: pickle.dump(gbc5, f)
         else:
             gbc5 = GradientBoostingClassifier().fit(X, Y)
-            with open(path_cm + 'gbc5', 'wb') as f: pickle.dump(gbc5, f)
+            with open(path_customer + 'gbc5', 'wb') as f: pickle.dump(gbc5, f)
 

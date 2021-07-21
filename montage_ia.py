@@ -1,5 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+@author: baptistehessel
+
+Main script that launches the servor.
+The objects necessary are:
+    - dict_pages
+    - dict_arts
+    - list_mdp
+    - dict_page_array
+	- dict_layouts_small
+	- gbc2
+	- gbc3
+	- gbc4
+	- gbc5
+
+"""
 from flask import Flask
 from flask_restful import reqparse, Api, Resource
 from logging.handlers import RotatingFileHandler
@@ -25,7 +41,7 @@ api = Api(app)
 
 # ARG PARSER - SERVOR. Initilisation of the arguements of the script
 # montage_ia.xml for the start webservice montage IA.
-main_parser = argparse.ArgumentParser(description='Lancmt servor montageIA')
+main_parser = argparse.ArgumentParser(description='Lancmt server montageIA')
 main_parser.add_argument('customer_code',
                          help="The code of a client to select the good data.",
                          type=str)
@@ -93,6 +109,17 @@ try:
 except Exception as e:
     logger.error(e, exc_info=True)
     logger.debug('Path to dict_arts: {}'.format(path_customer + 'dict_arts'))
+# Loading dictionary with all the pages
+try:
+    with open(path_customer + 'dict_page_array', 'rb') as f:
+        dict_page_array = pickle.load(f)
+except Exception as e:
+    logger.error(e, exc_info=True)
+    path_dict_p_a = path_customer + 'dict_page_array'
+    logger.debug('Path to dict_page_array: {}'.format(path_dict_p_a))
+# Loading dictionary with all the layouts with an MelodyId
+with open(path_customer + 'dict_layouts_small', 'rb') as f:
+    dict_layouts = pickle.load(f)
 # The Gradient Boosting Classifier trained with pages with 2 articles
 try:
     with open(path_customer + 'gbc2', 'rb') as file:
@@ -123,14 +150,6 @@ except Exception as e:
     logger.debug('Path to gbc5: {}'.format(path_customer + 'gbc5'))
 # Dictionary with all the models
 dict_gbc = {2: gbc2, 3: gbc3, 4: gbc4, 5: gbc5}
-
-# Loading dictionary with all the pages
-with open(path_customer + 'dict_page_array', 'rb') as f:
-    dict_page_array = pickle.load(f)
-
-# Loading dictionary with all the layouts with an MelodyId
-with open(path_customer + 'dict_layouts_small', 'rb') as f:
-    dict_layouts = pickle.load(f)
 
 
 class GetLayout(Resource):
@@ -182,7 +201,7 @@ class GetLayout(Resource):
                 print("{:-^80}".format("| Case without layout input |"))
                 print("{:-^80}".format(""))
                 args_nolay = [path_data_input, file_out, dico_bdd, dict_arts]
-                args_nolay += [list_mdp_data, dict_gbc, dict_layouts]
+                args_nolay += [list_mdp_data, dict_gbc, dict_layouts, ]
                 without_layout.FinalResultsMethodNoLayout(*args_nolay)
             logger.info('End of GET')
         except Exception as e:
@@ -190,15 +209,20 @@ class GetLayout(Resource):
         return "{:-^35.2f} sec".format(time.time() - t0)
 
 
+# Initialisation of the counter. Every 100 modifs, we save the database.
 COUNTER = 0
+
 
 class AddPage(Resource):
     """
     Adds the information of a published page in the different files of the
     database.
     Unused for the moment.
+
     """
     def post(self):
+        # Counts the number of modification of the database.
+        global COUNTER
         t0 = time.time()
         args = parser.parse_args()
         if COUNTER % 100 == 0:
@@ -225,4 +249,4 @@ api.add_resource(GetLayout, '/extract')
 api.add_resource(AddPage, '/add')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=param['port'])

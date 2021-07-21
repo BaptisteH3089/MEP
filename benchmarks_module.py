@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Script that validate the models which find the best module for an article
+Script that validates the models which find the best module for an article
 with a given layout.
 
 Objects necessary:
@@ -24,6 +24,8 @@ from sklearn.metrics import f1_score
 import numpy as np
 import pickle, time
 import argparse
+import xgboost as xgb
+import warnings
 
 str_desc = ('Script that prints the cross-validated results of the models '
             'tested to predict the best module for an article.')
@@ -37,14 +39,20 @@ parser.add_argument('nb_modules_layout',
                     help='Select the layouts with this number of modules.')
 args = parser.parse_args()
 
+# Standardize path_customer
+if args.path_customer[-1] == '/':
+    path_customer = args.path_customer
+else:
+    path_customer = args.path_customer + '/'
+
 # The dict with all the pages available
-with open(args.path_customer + 'dict_pages', 'rb') as file:
+with open(path_customer + 'dict_pages', 'rb') as file:
     dico_bdd = pickle.load(file)
 # The dict {ida: dicoa, ...}
-with open(args.path_customer + 'dict_arts', 'rb') as file:
+with open(path_customer + 'dict_arts', 'rb') as file:
     dict_arts = pickle.load(file)
 # The list of triplet (nb_pages_using_mdp, array_mdp, list_ids)
-with open(args.path_customer + 'list_mdp', 'rb') as file:
+with open(path_customer + 'list_mdp', 'rb') as file:
     list_mdp_data = pickle.load(file)
 
 
@@ -115,8 +123,23 @@ def TrainValidateModels(dico_bdd,
     mean_gnb = []
     mean_logreg = []
     mean_gbc = []
+    mean_xgb = []
     for k, (train, test) in enumerate(ss.split(X, Y)):
         print("FOLD: {}.".format(k))
+        # XGBoost
+        t_xgb = time.time()
+        dtrain = xgb.DMatrix(X[train], label=Y[train])
+        dtest = xgb.DMatrix(X[test], label=Y[test])
+        num_round = 10
+        param = {'objective': 'multi:softmax',
+                 'num_class': max(set(Y)) + 1,
+                 'eval_metric': 'mlogloss'}
+        print(f"param['num_class']: {param['num_class']}")
+        bst = xgb.train(param, dtrain, num_round)
+        preds_xgb = bst.predict(dtest)
+        score_xgb = f1_score(Y[test], preds_xgb, average='macro')
+        mean_xgb.append(score_xgb)
+        dict_duration['xgb'] = time.time() - t_xgb
         # Gradient Boosting Classifier
         t_gbc = time.time()
         gbc = GradientBoostingClassifier().fit(X[train], Y[train])
@@ -170,7 +193,7 @@ def TrainValidateModels(dico_bdd,
         mean_logreg.append(score_logreg)
         dict_duration['log'] = time.time() - t_log
     list_scores = [mean_gbc, mean_rfc, mean_svc, mean_lsvc, mean_sgd]
-    list_scores += [mean_gnb, mean_logreg]
+    list_scores += [mean_gnb, mean_logreg, mean_xgb]
     list_means = list(map(lambda x: np.mean(x), list_scores))
     list_mins = list(map(lambda x: min(x), list_scores))
     print("{:<50} {:>30.4f}.".format("GBC", list_means[0]))
@@ -180,6 +203,7 @@ def TrainValidateModels(dico_bdd,
     print("{:<50} {:>30.4f}.".format("SGD", list_means[4]))
     print("{:<50} {:>30.4f}.".format("GNB", list_means[5]))
     print("{:<50} {:>30.4f}.".format("Log Reg", list_means[6]))
+    print("{:<50} {:>30.4f}.".format("XGBoost", list_means[7]))
     return list_mins, list_means, dict_duration
 
 
@@ -195,7 +219,9 @@ pages_p_art = SelectionModelesPages(list_mdp_data, nb_modules_layout, 20)
 all_durations, all_means, all_mins = [], [], []
 for nb_pages, big_y, list_id_pages in pages_p_art:
     args = [dico_bdd, list_id_pages, big_y]
-    list_mins, list_means, dict_duration = TrainValidateModels(*args)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        list_mins, list_means, dict_duration = TrainValidateModels(*args)
     all_durations.append(dict_duration)
     all_means.append(list_means)
     all_mins.append(list_mins)
