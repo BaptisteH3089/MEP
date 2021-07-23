@@ -83,6 +83,10 @@ x = str(input("Creation of dict_layouts ? y/n "))
 if x == 'y':
     creation_dict_layout.CreationDictLayoutsSmall(dict_pages, dir_customer)
 
+x = str(input("Quit ? y/n "))
+if x == 'y':
+    sys.exit()
+
 # Then, dict_page_array
 x = str(input("Creation of dict_page_array ? y/n "))
 if x == 'y':

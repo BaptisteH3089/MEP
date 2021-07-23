@@ -1,11 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+author: Baptiste Hessel
+
+Script used to add the articles in a given page in the database.
+Almost everything should be rewritten, the functions about the extraction of
+the data are no longer good.
+
+"""
 from bs4 import BeautifulSoup as bs
 from operator import itemgetter
 from pathlib import Path
 import numpy as np
 import pickle
 import re
+
+
+class MyException(Exception):
+    pass
 
 
 def FillDicoPage(content_xml, page_soup, file_name):

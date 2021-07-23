@@ -145,9 +145,11 @@ def FillDictArticle(art_soup):
             mmHeight = float(art_soup.get('mmheight'))
             dict_article_current['width'] = round(mmWidth, 1)
             dict_article_current['height'] = round(mmHeight, 1)
+            dict_article_current['aireTot'] = round(mmWidth * mmHeight, 0)
         else:
             dict_article_current['width'] = -1
             dict_article_current['height'] = -1
+            dict_article_current['aireTot'] = 0
     except Exception as e:
         print(e, 'FillDictArticle : width and height')
     # Pb sur cet export (14/12), le nombre de signe art = 0
@@ -253,14 +255,11 @@ def FillDictArticle(art_soup):
     except Exception as e:
         print(e, 'FillDictArticle : posArt')
     # Initialisation de la hiérarchie des articles
-    try:
-        dict_article_current['isPrinc'] = 0
-        dict_article_current['isSec'] = 0
-        dict_article_current['isMinor'] = 0
-        dict_article_current['isSub'] = 0
-        dict_article_current['isTer'] = 0
-    except Exception as e:
-        print(e, 'FillDictArticle : isPrinc...')
+    dict_article_current['isPrinc'] = 0
+    dict_article_current['isSec'] = 0
+    dict_article_current['isMinor'] = 0
+    dict_article_current['isSub'] = 0
+    dict_article_current['isTer'] = 0
     return dict_article_current
 
 
@@ -359,9 +358,6 @@ def DetermPrinc(dict_page):
     probas = []
     val_dict = dict_page['articles'].values()
     item_dict = dict_page['articles'].items()
-    #print("{:-^80}".format("The values of the dictionary dict_page"))
-    #for val in val_dict:
-        #print(val)
     for id_art, dict_art in item_dict:
         p = 0
         # Si nb_col max p += 0.2
@@ -369,27 +365,26 @@ def DetermPrinc(dict_page):
         max_col = max((col for col, _ in nb_col))
         ind_max_col = [ida for ida, col in nb_col if col == max_col]
         if id_art in ind_max_col:
-            p += 0.2
+            p += 0.1
+        elif dict_art['nbCol'] > 4:
+            p += 0.1
+        elif dict_art['nbCol'] < 3:
+            p -= 0.1
+        # Number of blocks
+        if np.mean(dict_art['nbSignBlock']) > 50:
+            std_nb_blocks =  dict_art['nbBlock']/40 - 0.15
+            p += std_nb_blocks / 5
+        else:
+            p -= 0.15
         # Nb de caractères maximum
         nb_car = [(dict_art['nbSign'], ida) for ida, dict_art in item_dict]
         max_nb_car = max((nbcar for nbcar, _ in nb_car))
         ids_max_car = [ida for ida, nbcar in nb_car if nbcar == max_nb_car]
         if id_art in ids_max_car:
             p += 0.10
-        # Largeur de l'article
-        larg = [(dict_art['width'], ida) for ida, dict_art in item_dict]
-        max_larg = max((w for w, _ in larg))
-        ids_max_larg = [ida for width, ida in larg if width == max_larg]
-        if id_art in ids_max_larg:
-            p += 0.15
-        # Diminution score s'il existe un article avec plus grande largeur et
-        # hauteur
-        dim = {ida: (dic['width'], dic['height']) for ida, dic in item_dict}
-        dim_art = dim[id_art]
-        ids_sup_dim = [ida for ida, dim in dim.items()
-                       if dim[0] >= dim_art[0] and dim[1] >= dim_art[1]]
-        if ids_sup_dim != []:
-            p -= 0.2
+        # Increase of the score proportional to the number of signs
+        std_nb_car = dict_art['nbSign']/8000 - 0.125
+        p += std_nb_car / 2
         # Augmentation de la proba si article le plus haut
         htr = [(dict_art['y'], ida) for ida, dict_art in item_dict]
         max_htr = max((y for y, _ in htr))
@@ -397,11 +392,11 @@ def DetermPrinc(dict_page):
         if id_art in ids_max_htr:
             p += 0.15
         # Augmentation de la proba si article avec la plus grande aire
-        aires = [(d['width']*d['height'], ida) for ida, d in item_dict]
-        max_aires = max((aire for aire, _ in aires))
-        ids_max_aires = [ida for area, ida in aires if area == max_aires]
-        if id_art in ids_max_aires:
-            p += 0.15
+        # Max area possible = 126 000
+        # If area <= 10 000, small article
+        # We divise by 126 000 and do minus 0.08 (10 000 / 126 000 = 0.08)
+        aire_std_art = (dict_art['width']*dict_art['height'])/126000 - 0.08
+        p += aire_std_art / 3
         # Détermination si l'article possède un/des article(s) lié(s)
         coord_art = (dict_art['x'], dict_art['y'])
         largeur = dict_art['width']
@@ -419,39 +414,26 @@ def DetermPrinc(dict_page):
             p += 0.2
             dict_art['has_incl'] = len(art_bound)
         # Nb images
-        if dict_art['nbPhoto'] == 0:
-            p -= 0.1
-        elif dict_art['nbPhoto'] > 0:
-            p += 0.1
-        # Synopsis
-        if dict_art['syn'] > 0:
-            p += 0.05
+        if dict_art['nbPhoto'] == 0: p -= 0.1
+        elif dict_art['nbPhoto'] > 0: p += 0.1
         # Title
-        if dict_art['title'] == 0:
-            p -= 0.2
+        if dict_art['title'] == 0: p -= 0.2
         # SupTitle
-        if dict_art['supTitle'] > 0:
-            p += 0.05
+        if dict_art['supTitle'] > 0: p += 0.05
         # SecondaryTitle
-        if dict_art['secTitle'] > 0:
-            p += 0.05
+        if dict_art['secTitle'] > 0: p += 0.05
         # SubTitle
-        if dict_art['subTitle'] > 0:
-            p += 0.05
+        if dict_art['subTitle'] > 0: p += 0.05
+        # Petittitre
+        if 'petittitre' in dict_art['typeBlock']: p += 0.05
+        # Synopsis
+        if dict_art['syn'] > 0: p += 0.1
         # Abstract
-        if dict_art['abstract'] > 0:
-            p += 0.05
+        if dict_art['abstract'] > 0: p += 0.1
         # Exergue
-        if dict_art['exergue'] > 0:
-            p += 0.05
-        # PetitTitre et InterTitre
-        if 'intertitre' in dict_art['typeBlock']:
-            p += 0.05
-        if 'petittitre' in dict_art['typeBlock']:
-            p += 0.05
+        if dict_art['exergue'] > 0: p += 0.1
         # Position_Article
-        if dict_art['posArt'] > 0:
-            p += 0.2
+        if dict_art['posArt'] > 0: p += 0.2
         probas.append((round(p, 2), id_art))
         dict_art['score'] = p
     # En cas d'égalité
@@ -600,15 +582,27 @@ def UpdateAll(dict_pages):
 def Determ_Nat_Art(dict_page):
     """
     À utiliser une fois que les élmts score, distToPrinc sont remplis.
+
+    Update 21/07: Increases the number of Ter articles. All the articles with
+    a score between 0.05 and 0.2 are ter articles
+
     """
     for dict_art in dict_page['articles'].values():
         if dict_art['isPrinc'] == 0:
-            if dict_art['score'] <= 0.05:
-                # Si img : ter, sinon : minor
-                if dict_art['nbPhoto'] > 0:
+            # Just for the cases where we update some elements
+            dict_art['isTer'] = 0
+            dict_art['isSub'] = 0
+            dict_art['isSec'] = 0
+            dict_art['isMinor'] = 0
+            if dict_art['score'] <= 0.15:
+                if dict_art['score'] >= -0.05:
                     dict_art['isTer'] = 1
                 else:
-                    dict_art['isMinor'] = 1
+                    # Si img : ter, sinon : minor
+                    if dict_art['nbPhoto'] > 0:
+                        dict_art['isTer'] = 1
+                    else:
+                        dict_art['isMinor'] = 1
             else:
                 if dict_art['distToPrinc'] >= 0.2:
                     dict_art['isSub'] = 1
@@ -713,6 +707,7 @@ def UpdateNew(dict_pages):
 def GetDistributionPage(dict_page):
     """
     Renvoie la répartition du type d'articles dans la page.
+
     """
     rep = [0, 0, 0, 0]
     for dict_art in dict_page['articles'].values():
@@ -816,3 +811,4 @@ def CreationDictPages(rep_data, dir_out, save_dict=True):
     if save_dict:
         with open(dir_out + 'dict_pages', 'wb') as f:
             pickle.dump(dico_bdd, f)
+
