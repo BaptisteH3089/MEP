@@ -11,8 +11,8 @@ from bs4 import BeautifulSoup
 from operator import itemgetter
 import xml.etree.cElementTree as ET
 import numpy as np
-import methods
 import re
+import methods
 
 
 # Classe pour écrire des exceptions personnalisées

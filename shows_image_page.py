@@ -20,23 +20,25 @@ import pickle
 
 path_cm = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM/'
 
-# Loading dictionary with all the layouts and the pages that use them
-with open(path_cm + 'dict_layouts', 'rb') as f:
-    dict_layouts = pickle.load(f)
-# Loading dictionary with all the pages
-with open(path_cm + 'dict_pages', 'rb') as f:
-    dict_pages = pickle.load(f)
-# Loading dictionary with all the articles
-with open(path_cm + 'dict_arts', 'rb') as f:
-    dict_arts = pickle.load(f)
+loading_files = False
+if loading_files:
+    # Loading dictionary with all the layouts and the pages that use them
+    with open(path_cm + 'dict_layouts', 'rb') as f:
+        dict_layouts = pickle.load(f)
+    # Loading dictionary with all the pages
+    with open(path_cm + 'dict_pages', 'rb') as f:
+        dict_pages = pickle.load(f)
+    # Loading dictionary with all the articles
+    with open(path_cm + 'dict_arts', 'rb') as f:
+        dict_arts = pickle.load(f)
 
-dict_nbmodules = {i: [] for i in range(2, 9)}
-for id_layout, dict_val in dict_layouts.items():
-    nb_modules = len(dict_val['cartons'])
-    try:
-        dict_nbmodules[nb_modules].append(id_layout)
-    except:
-        print("Different number of modules", nb_modules)
+    dict_nbmodules = {i: [] for i in range(2, 9)}
+    for id_layout, dict_val in dict_layouts.items():
+        nb_modules = len(dict_val['cartons'])
+        try:
+            dict_nbmodules[nb_modules].append(id_layout)
+        except:
+            print("Different number of modules", nb_modules)
 
 
 # Possibilité de mettre du texte dans les figures, mais pas d'imgs
@@ -54,7 +56,8 @@ def RepPageSlide(zonning_arts,
     axes.xaxis.set_visible(False)
     axes.yaxis.set_visible(False)
     colors = ['green', 'darkred', 'midnightblue', 'darkgoldenrod']
-    colors += ['darkseagreen', 'mediumslateblue', 'crimson']
+    colors += ['darkseagreen', 'mediumslateblue', 'crimson', 'b']
+    colors += ['rosybrown', 'orangered', 'lime', 'y', 'g', 'tan', 'c']
     middle_imgs = []
     # 1. On place les articles
     for i, (dim_art, id_art) in enumerate(zip(zonning_arts, l_id_art)):

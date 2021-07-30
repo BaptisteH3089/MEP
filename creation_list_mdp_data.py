@@ -11,7 +11,7 @@ Script that creates the object list_mdp, which is of the form:
         list_ids_page_using_layout),
        ...]
 
-Imports recover_true_layout.
+Imports module_montage.
 
 Objects necessary:
     - dict_page_array_fast
@@ -22,7 +22,7 @@ The arguments of the script are:
 
 """
 import pickle
-import recover_true_layout
+import module_montage
 import time
 
 
@@ -44,7 +44,7 @@ def ArrayLayoutInList(array_layout, list_already_added):
     """
     for array_layout_added in list_already_added:
         args = [array_layout, array_layout_added, 1]
-        if recover_true_layout.CompareTwoLayouts(*args):
+        if module_montage.CompareTwoLayouts(*args):
             return True
     return False
 
@@ -79,7 +79,7 @@ def CreationListLayouts(dict_pg_ar_fast):
                 list_layout = [1, layout1, [idpage1]]
                 for idpage2, layout2 in list(dict_nb_modules.items())[i:]:
                     args = [layout1, layout2, 10]
-                    if recover_true_layout.CompareTwoLayouts(*args):
+                    if module_montage.CompareTwoLayouts(*args):
                         list_layout[0] += 1
                         list_layout[2].append(idpage2)
                 list_tuple_layout.append(list_layout)
@@ -104,42 +104,48 @@ def CreationListMdp(dict_page_array_fast, path_customer, save_list=True):
     print(f"The length of list_tuple_layout: {len(list_tuple_layout)}")
     total_pages = sum((elt for elt, _, _ in list_tuple_layout))
     print(f"The total number of pages: {total_pages}")
+
     # Well, we need to remove duplicates.
-    t1 = time.time()
-    for nb_pages, array_layout, list_ids in list_tuple_layout:
-        for idpage in list_ids:
-            # We look if the id is also associated to an other layout
-            res_found = list(filter(lambda x: idpage in x[2], list_tuple_layout))
-            # If len(res_found) > 0. We add all the other list_ids to the current
-            # and we delete the other lists.
-            for tuple_found in res_found:
-                # We add all these ids.
-                list_ids += tuple_found[2]
-                # We delete the tuple_found.
-                ### list_tuple_layout.remove(tuple_found)
-                try:
-                    index_tuple_found = list_listids.index(tuple_found[2])
-                    # We delete the elements in both lists
-                    list_tuple_layout.pop(index_tuple_found)
-                    list_listids.pop(index_tuple_found)
-                except Exception as e:
-                    str_exc = f"An exception while poping tuple_found: {e}\n"
-                    str_exc += f"The tuple found: \n{tuple_found}\n"
-                    nb_exc += 1
-                    if nb_exc < 5:
-                        print(str_exc)
-        # We delete duplicates in the list_ids.
-        list_ids = list(set(list_ids))
-    print(f"Duration removal duplicates: {time.time() - t1} sec.")
-    print(f"The new length of list_tuple_layout: {len(list_tuple_layout)}")
-    total_pages = sum((elt for elt, _, _ in list_tuple_layout))
-    print(f"The new total number of pages: {total_pages}")
-    for i, (nb_pages, array_lay, list_ids) in enumerate(list_tuple_layout):
-        print(f"The number of pages: {nb_pages}")
-        print(f"{array_lay}")
-        print(f"An extract of the list_ids: {list_ids[:4]}")
-        if i == 10:
-            break
+    # Some difficulties here because it deletes almost all ids
+    remove_dup = False
+    if remove_dup:
+        t1 = time.time()
+        for nb_pages, array_layout, list_ids in list_tuple_layout:
+            for idpage in list_ids:
+                # We look if the id is also associated to an other layout
+                res_found = list(filter(lambda x: idpage in x[2], list_tuple_layout))
+                # If len(res_found) > 0. We add all the other list_ids to the current
+                # and we delete the other lists.
+                for tuple_found in res_found:
+                    # We add all these ids.
+                    list_ids += tuple_found[2]
+                    # We delete the tuple_found.
+                    ### list_tuple_layout.remove(tuple_found)
+                    try:
+                        index_tuple_found = list_listids.index(tuple_found[2])
+                        # We delete the elements in both lists
+                        list_tuple_layout.pop(index_tuple_found)
+                        list_listids.pop(index_tuple_found)
+                    except Exception as e:
+                        str_exc = f"An exception while poping tuple_found: {e}\n"
+                        str_exc += f"The tuple found: \n{tuple_found}\n"
+                        nb_exc += 1
+                        if nb_exc < 5:
+                            print(str_exc)
+            # We delete duplicates in the list_ids.
+            list_ids = list(set(list_ids))
+        print(f"Duration removal duplicates: {time.time() - t1} sec.")
+        print(f"The new length of list_tuple_layout: {len(list_tuple_layout)}")
+        total_pages = sum((elt for elt, _, _ in list_tuple_layout))
+        print(f"The new total number of pages: {total_pages}")
+
+        for i, (nb_pages, array_lay, list_ids) in enumerate(list_tuple_layout):
+            print(f"The number of pages: {nb_pages}")
+            print(f"{array_lay}")
+            print(f"An extract of the list_ids: {list_ids[:4]}")
+            if i == 10:
+                break
+
     if save_list:
         with open(path_customer + 'list_mdp', 'wb') as f:
             pickle.dump(list_tuple_layout, f)

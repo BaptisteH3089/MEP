@@ -299,10 +299,7 @@ def FillDictPhoto(bl_ph_soup):
 
 
 def ExtrationData(rep_data):
-    """
-
-    Extraction des données des xml.
-
+    """Extraction des données des xml.
     """
     info_extract_pages = []
     # Boucle pour l'extraction des xml
@@ -564,6 +561,14 @@ def Update(dict_page):
         str_exc = (f"An error with the last 3 features: {e}\n"
                    f"The dict_page['articles']: {dict_page['articles']}")
         raise MyException(str_exc)
+    # Formerly it was the function UpdateNew
+    # 'prop_img', 'nbcar', 'nbimg', 'prop_art'
+    try:
+        dict_page = UpdateNew4ft(dict_page)
+    except Exception as e:
+        str_exc = (f"An exception occurs with Update:UpdateNew4ft: \n{e}\n"
+                   f"The dict_page['articles']: {dict_page['articles']}")
+        raise MyException(str_exc)
     return dict_page
 
 
@@ -681,27 +686,29 @@ def DistanceCosTuple(dict_page):
     return dict_page, l_dist
 
 
-def UpdateNew(dict_pages):
-    """
-    Rajout des éléments suivants : 'prop_img', 'nbcar', 'nbimg', 'prop_art'.
+def UpdateNew4ft(dict_page):
+    """Rajout des éléments suivants :
+        - 'prop_img'
+        - 'nbcar'
+        - 'nbimg'
+        - 'prop_art'
     """
     # Rajout de l'élément prop_art à chaque ntuple_page
-    for dict_page in dict_pages:
-        aire_img_tot, nbcar_tot, nbimg_tot, aire_tot = 0, 0, 0, 0
-        for dict_art in dict_page['articles'].values():
-            aire_tot += dict_art['width'] * dict_art['height']
-            nbcar_tot += dict_art['nbSignTxt']
-            nbimg_tot += dict_art['nbPhoto']
-            for dict_img in dict_art['photo']:
-                aire_img_tot += dict_img['width'] * dict_img['height']
-        aire_page = dict_page['width'] * dict_page['height']
-        # 1. prop_art et 2. prop_img
-        dict_page['propArt'] = round(aire_tot / aire_page, 1)
-        dict_page['propImg'] = round(aire_img_tot / aire_page, 1)
-        # 3. nbcar et 4. nbimg
-        dict_page['nbCar'] = nbcar_tot
-        dict_page['nbImg'] = nbimg_tot
-    return dict_pages
+    aire_img_tot, nbcar_tot, nbimg_tot, aire_tot = 0, 0, 0, 0
+    for dict_art in dict_page['articles'].values():
+        aire_tot += dict_art['width'] * dict_art['height']
+        nbcar_tot += dict_art['nbSignTxt']
+        nbimg_tot += dict_art['nbPhoto']
+        for dict_img in dict_art['photo']:
+            aire_img_tot += dict_img['width'] * dict_img['height']
+    aire_page = dict_page['width'] * dict_page['height']
+    # 1. prop_art et 2. prop_img
+    dict_page['propArt'] = round(aire_tot / aire_page, 1)
+    dict_page['propImg'] = round(aire_img_tot / aire_page, 1)
+    # 3. nbcar et 4. nbimg
+    dict_page['nbCar'] = nbcar_tot
+    dict_page['nbImg'] = nbimg_tot
+    return dict_page
 
 
 def GetDistributionPage(dict_page):
@@ -798,17 +805,21 @@ def CreationDictPages(rep_data, dir_out, save_dict=True):
     list_dict_pages = UpdateAll(list_dict_pages)
     print("UpdateAll : {:.2f} sec".format(time.time() - t1))
 
-    t2 = time.time()
-    list_dict_pages = UpdateNew(list_dict_pages)
-    print("UpdateNew: {:.2f} sec".format(time.time() - t2))
-
     t3 = time.time()
     dico_bdd = CreationBDD(list_dict_pages)
-    print("CreationBDD: {:.2f} sec".format(time.time() - t3))
+    # Creation of the dict_arts
+    dict_arts = {}
+    for idp, dicop in dico_bdd.items():
+        for ida, dicta in dicop['articles'].items():
+            dict_arts[ida] = dicta
+    print("CreationBDD and dict_arts: {:.2f} sec".format(time.time() - t3))
 
+    # Jusr shows the elements in the prompt
     ShowElementsDicoBDD(dico_bdd)
 
     if save_dict:
         with open(dir_out + 'dict_pages', 'wb') as f:
             pickle.dump(dico_bdd, f)
+        with open(dir_out + 'dict_arts', 'wb') as f:
+            pickle.dump(dict_arts, f)
 

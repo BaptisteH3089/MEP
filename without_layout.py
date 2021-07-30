@@ -12,7 +12,7 @@ import xml.etree.cElementTree as ET
 from pathlib import Path
 from operator import itemgetter
 import time
-import recover_true_layout
+import module_montage
 import propositions
 import methods
 
@@ -102,7 +102,7 @@ def VerificationPageMDP(dico_narts, list_mdp_narts):
     str_prt = "The nb of 0 match found"
     # print("{:<35} {:>35}".format(str_prt, list_all_matches.count(0)))
     str_prt = "The total nb of pages in our data"
-    print(f"{str_prt:<35} {len(dico_narts):>35}")
+    return f"{str_prt:<35} {len(dico_narts):>10}"
 
 
 # OK, there are some duplicates
@@ -113,6 +113,7 @@ def CreationVectXY(dico_narts,
                    list_mdp_narts,
                    list_features,
                    nb_pages_min):
+    print(f"CreationVectXY. Initial length of dico_narts: {len(dico_narts)}")
     vect_XY = []
     for key in dico_narts.keys():
         for i, (ida, dicoa) in enumerate(dico_narts[key].items()):
@@ -179,7 +180,7 @@ def CreationXY(vect_XY, dict_labels):
     # I want to have set(big_Y) = {0, 1, 2, 3, 4}
     dict_corres_labels = {label: i for i, label in enumerate(set(big_Y))}
     better_big_Y = [dict_corres_labels[label] for label in big_Y]
-    print(f"without_layout:CreationXY set(better_big_Y): {set(better_big_Y)}")
+    # print(f"without_layout:CreationXY set(better_big_Y): {set(better_big_Y)}")
     return big_X, np.array(better_big_Y)
 
 
@@ -218,8 +219,10 @@ def CreateXYFromScratch(dico_bdd,
 
     """
     dico_narts = SelectionPagesNarts(dico_bdd, nb_arts)
+    print(f"SelectionPagesNarts return a dict of length: {len(dico_narts)}")
     list_mdp_narts = SelectionMDPNarts(list_mdp, nb_arts)
-    print(VerificationPageMDP(dico_narts, list_mdp_narts))
+    print(f"SelectionMDPNarts returns an object of length: {len(list_mdp_narts)}")
+    print(f"VerificationPageMDP: {VerificationPageMDP(dico_narts, list_mdp_narts)}")
     args_xy = [dico_narts, dict_arts, list_mdp_narts, list_feats, nbpg_min]
     vect_XY = CreationVectXY(*args_xy)
     dict_labels = CreationDictLabels(vect_XY)
@@ -936,7 +939,7 @@ def FinalResultsMethodNoLayout(file_in,
             layout_data = dicolay['array']
             if layout_data.shape == array_layout_output.shape:
                 args = [array_layout_output, layout_data, 10]
-                if recover_true_layout.CompareTwoLayouts(*args):
+                if module_montage.CompareTwoLayouts(*args):
                     # If match, we add the id of the layout
                     dict_page_result['idLayout'] = id_layout_data
                     match = True

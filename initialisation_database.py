@@ -6,23 +6,25 @@ Created on Mon Jun  7 15:57:50 2021
 @author: baptistehessel
 
 Script that creates all the files that will be used to compute proposals
-of page for a given client.
-
-creation_dict_bdd.py:
-
-creation_dict_layout.py:
-    - dico_pages
+of page for a given client. It creates the following objects:
+    - dict_pages
+    - dict_arts
+    - list_mdp
+    - dict_page_array
+    - dict_page_array_fast
+    - dict_layouts
 
 """
 import pickle
 import argparse
+import sys
+import os
 import creation_dict_bdd
 import creation_dict_layout
 import creation_dict_page_array
 import creation_dict_page_array_fast
 import creation_list_mdp_data
-import sys
-import os
+
 
 parser = argparse.ArgumentParser(description="Create the customer's database.")
 parser.add_argument('rep_data',
@@ -33,8 +35,7 @@ parser.add_argument('dir_customer',
                     type=str)
 parser.add_argument('--list_mdp',
                     help='Whether to create this list which takes time.',
-                    type=bool,
-                    default=True)
+                    action='store_false')
 args = parser.parse_args()
 
 # Test about rep_data
@@ -62,7 +63,7 @@ if os.path.isdir(dir_customer):
         if i == 12:
             print("And maybe more entries...")
             break
-    x = input("Continue ? y/n", )
+    x = input("Continue ? y/n ", )
     if x == 'n':
         print("Script interrupted.")
         sys.exit()
@@ -70,7 +71,7 @@ else:
     # We make the directory
     os.mkdir(dir_customer)
 
-# We begin by creating the dict_pages
+# We begin by creating the dict_pages and also the dict_arts
 x = str(input("Creation of dict_pages ? y/n "))
 if x == 'y':
     creation_dict_bdd.CreationDictPages(args.rep_data, dir_customer)

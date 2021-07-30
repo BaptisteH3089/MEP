@@ -5,9 +5,9 @@ from sklearn.model_selection import ShuffleSplit
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import f1_score
 import pickle
-import without_layout
 import numpy as np
 import argparse
+import without_layout
 
 """
 @author: baptistehessel

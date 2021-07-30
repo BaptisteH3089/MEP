@@ -11,9 +11,9 @@ I have.
 Object necessary:
     - dict_pages.
 
-Imports the script recover_true_layout.
+Imports the script module_montage.
 
-Creates the object /path_customer/dict_layouts_small.
+Creates the object /path_customer/dict_layouts.
 
 dict_layouts_small is of the form:
     - {id_layout: {'nameTemplate': name_template,
@@ -25,7 +25,7 @@ dict_layouts_small is of the form:
 """
 import pickle
 import numpy as np
-import recover_true_layout
+import module_montage
 
 
 ##############################################################################
@@ -104,7 +104,7 @@ def CreationDictLayoutVerif(dico_bdd):
                         cartons.append([dicoa[x] for x in feat_carton[:-2]])
                     layout_page = np.array(cartons)
                     args_c = [layout_template, layout_page]
-                    if recover_true_layout.CompareTwoLayouts(*args_c):
+                    if module_montage.CompareTwoLayouts(*args_c):
                         dd_layouts_sm[id_layout]['id_pages'].append(id_page)
             else:
                 name_template = dico_bdd[id_page]['nameTemplate']
@@ -136,5 +136,5 @@ def CreationDictLayoutsSmall(dict_pages, path_customer, save_dict=True):
             break
     # Wheter to save or not the small dict.
     if save_dict:
-        with open(path_customer + 'dict_layouts_small', 'wb') as f:
+        with open(path_customer + 'dict_layouts', 'wb') as f:
             pickle.dump(dd_layouts_sm, f)

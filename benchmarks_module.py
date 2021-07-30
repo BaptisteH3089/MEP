@@ -134,7 +134,7 @@ def TrainValidateModels(dico_bdd,
         param = {'objective': 'multi:softmax',
                  'num_class': max(set(Y)) + 1,
                  'eval_metric': 'mlogloss'}
-        print(f"param['num_class']: {param['num_class']}")
+        # print(f"param['num_class']: {param['num_class']}")
         bst = xgb.train(param, dtrain, num_round)
         preds_xgb = bst.predict(dtest)
         score_xgb = f1_score(Y[test], preds_xgb, average='macro')
@@ -211,10 +211,23 @@ list_features = ['nbSign', 'nbBlock', 'abstract', 'syn']
 list_features += ['exergue', 'title', 'secTitle', 'supTitle']
 list_features += ['subTitle', 'nbPhoto', 'aireImg', 'aireTot']
 list_features += ['petittitre', 'quest_rep', 'intertitre']
+list_features += ['isPrinc', 'isSec', 'isTer', 'isMinor']
+
 # On sélectionne le nb d'articles qu'on veut avec un nb min de pages pour
 # entraîner le modèle
 nb_modules_layout = args.nb_modules_layout
-pages_p_art = SelectionModelesPages(list_mdp_data, nb_modules_layout, 20)
+
+nb_min = 20
+pages_p_art = SelectionModelesPages(list_mdp_data, nb_modules_layout, nb_min)
+print(f"Number of layouts={len(pages_p_art)} with min number pages={nb_min}")
+
+while len(pages_p_art) > 50:
+    nb_min += 10
+    pages_p_art = SelectionModelesPages(list_mdp_data, nb_modules_layout, nb_min)
+    print(f"Number of layouts={len(pages_p_art)} with min number pages={nb_min}")
+
+
+
 
 all_durations, all_means, all_mins = [], [], []
 for nb_pages, big_y, list_id_pages in pages_p_art:

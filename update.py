@@ -4,6 +4,11 @@
 Created on Fri Jul 23 14:58:08 2021
 
 @author: baptistehessel
+
+Just a small script to look at the repartition of the type of articles and at
+some of the features.
+Mainly used for documentation.
+
 """
 import pickle
 import matplotlib.pyplot as plt
@@ -29,6 +34,7 @@ for l in list_all_labels:
     if sum(l) > 1:
         print(l)
 
+
 #%%
 
 # Stats about the types of articles
@@ -52,6 +58,7 @@ for dicop in dict_pages.values():
         elif dicta['isMinor'] == 1:
             dict_type['minor'].append(dicta)
 
+
 #%%
 
 # Average of the vectors
@@ -72,8 +79,14 @@ for key, val in dict_vectors.items():
     print(np.mean(val, axis=0))
 
 
+# Let's look at the main articles
+list_nb_signs = [d['nbSign'] for d in dict_type['main']]
+list_nb_photos = [d['nbPhoto'] for d in dict_type['main']]
+list_tot_area = [d['aireTot'] for d in dict_type['main']]
 
-
+plt.hist(list_nb_signs, bins=50, range=[0, 10000])
+plt.hist(list_nb_photos, bins=50)
+plt.hist(list_tot_area, bins=50)
 
 
 

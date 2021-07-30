@@ -25,7 +25,7 @@ import numpy as np
 import xgboost as xgb
 
 
-def TrainValidateModel(X, Y):
+def TrainValidateModel(X, Y, verbose=0):
     mean_rdc, mean_svc, mean_lsvc = [], [], []
     mean_sgd, mean_gnb = [], []
     mean_logrepnop = []
@@ -41,7 +41,7 @@ def TrainValidateModel(X, Y):
         param = {'objective': 'multi:softmax',
                  'num_class': max(set(Y)) + 1,
                  'eval_metric': 'mlogloss'}
-        print(f"param['num_class']: {param['num_class']}")
+        # print(f"param['num_class']: {param['num_class']}")
         bst = xgb.train(param, dtrain, num_boost_round=15)
         preds_xgb = bst.predict(dtest)
         score_xgb = f1_score(Y[test], preds_xgb, average='macro')
@@ -102,15 +102,16 @@ def TrainValidateModel(X, Y):
         mean_gbc.append(score_gbc)
         dict_duration['gbc'] = time.time() - t_gbc
         print("FOLD: {}.".format(i))
-        print("{:<50} {:>30.4f}.".format("score XGBoost", score_xgb))
-        print("{:<50} {:>30.4f}.".format("score rdmForest", score_rdc))
-        print("{:<50} {:>30.4f}.".format("score GBC", score_gbc))
-        print("{:<50} {:>30.4f}.".format("score SVC", score_svc))
-        print("{:<50} {:>30.4f}.".format("score Linear SVC", score_lsvc))
-        print("{:<50} {:>30.4f}.".format("score SGD", score_sgd))
-        print("{:<50} {:>30.4f}.".format("score GNB", score_gnb))
-        print("{:<50} {:>30.4f}.".format("score Log", score_logregnop))
-        print('\n')
+        if verbose > 0:
+            print("{:<50} {:>30.4f}.".format("score XGBoost", score_xgb))
+            print("{:<50} {:>30.4f}.".format("score rdmForest", score_rdc))
+            print("{:<50} {:>30.4f}.".format("score GBC", score_gbc))
+            print("{:<50} {:>30.4f}.".format("score SVC", score_svc))
+            print("{:<50} {:>30.4f}.".format("score Linear SVC", score_lsvc))
+            print("{:<50} {:>30.4f}.".format("score SGD", score_sgd))
+            print("{:<50} {:>30.4f}.".format("score GNB", score_gnb))
+            print("{:<50} {:>30.4f}.".format("score Log", score_logregnop))
+            print('\n')
     all_means = [mean_rdc, mean_svc, mean_lsvc, mean_sgd, mean_gnb]
     all_means += [mean_logrepnop, mean_gbc, mean_xgb]
     str_means = ['mean_rdc', 'mean_svc','mean_lsvc', 'mean_sgd', 'mean_gnb']

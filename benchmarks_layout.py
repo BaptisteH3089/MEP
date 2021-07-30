@@ -14,13 +14,13 @@ Objects necessary:
 """
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.ensemble import GradientBoostingClassifier
-import without_layout
-import validation_models
 import time
 import numpy as np
 import pickle
 import argparse
 import warnings
+import without_layout
+import validation_models
 
 
 class MyException(Exception):
@@ -248,6 +248,7 @@ list_features = ['nbSign', 'nbBlock', 'abstract', 'syn']
 list_features += ['exergue', 'title', 'secTitle', 'supTitle']
 list_features += ['subTitle', 'nbPhoto', 'aireImg', 'aireTot']
 list_features += ['petittitre', 'quest_rep', 'intertitre']
+list_features += ['isPrinc', 'isSec', 'isTer', 'isMinor']
 
 
 # GlobalValidateModel(dico_bdd, list_mdp_data, 3, 20)
@@ -271,7 +272,7 @@ for min_nb in [10, 30, 50]:
     dict_nblabel = {x: list(Y).count(x) for x in set(Y)}
     Xn, Yn = FilterSmallClasses(X, Y, dict_nblabel, 10)
     dict_nblabelsn = {x: list(Yn).count(x) for x in set(Yn)}
-    print("The data labelled", dict_nblabelsn)
+    # print("The data labelled", dict_nblabelsn)
     print("{:-^70}".format("Nb of classes: {}".format(len(dict_nblabelsn))))
     tot_pages = sum(dict_nblabelsn.values())
     print("{:-^70}".format("Nb of pages: {}".format(tot_pages)))
