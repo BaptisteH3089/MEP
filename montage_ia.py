@@ -26,6 +26,7 @@ import logging
 import pickle
 import time
 import os
+import json
 import propositions # script with the code used for the requests with layout
 import without_layout # script for the case with no layout input
 import add_page # script used to add a page to the data
@@ -79,8 +80,8 @@ config.read(main_args.path_param_file)
 # The parameters extracted from the parameters file.
 param = {'path_log': config.get('LOG', 'path_log'),
          'path_data': config.get('DATA', 'path_data'),
-         'port': config.get('CUSTOMERS', main_args.customer_code)}
-
+         'port': config.get('CUSTOMERS', main_args.customer_code),
+         'list_features': json.loads(config.get('FEATURES', 'list_features'))}
 
 # LOGGER
 
@@ -196,6 +197,11 @@ class GetLayout(Resource):
     """
     def get(self):
         t0 = time.time()
+        print("\n\n{:-^80}\n".format("BEGINNING ALGO"))
+
+        list_features = param['list_features']
+        print(f"The features used:\n{list_features}. {type(list_features)}.")
+
         args = parser.parse_args()
         try:
             file_in = args['file_in']
@@ -214,25 +220,31 @@ class GetLayout(Resource):
                 str_exc = (f"Error with os.path.basename(): {e}\n"
                            "file_in: {file_in}")
                 raise MyException(str_exc)
+
             # We remove the .zip in the basename_file_in
             path_data_input = dir_file_in + '/input/' + basename_file_in[:-4]
+            path_data_input_trunc = dir_file_in + '/input/'
             with zipfile.ZipFile(file_in, "r") as z:
-                z.extractall(path_data_input)
-            print(f"path_data_input: {path_data_input}")
+                z.extractall(path=path_data_input_trunc)
+            print(f"path_data_input: {path_data_input} \n"
+                  f"path_data_input_trunc: {path_data_input_trunc}\n")
+
             directories = os.listdir(path_data_input)
-            print(f"directories: {directories}")
+            print(f"directories: {directories}\n")
             if 'pageTemplate' in directories:
                 print("{:-^80}".format(""))
                 print("{:-^80}".format("| Case with layout input |"))
-                print("{:-^80}".format(""))
+                print("{:-^80}\n".format(""))
                 args_lay = [dict_pages, list_mdp, path_data_input, file_out]
+                args_lay += [list_features]
                 propositions.ExtractAndComputeProposals(*args_lay)
             else:
                 print("{:-^80}".format(""))
                 print("{:-^80}".format("| Case without layout input |"))
-                print("{:-^80}".format(""))
+                print("{:-^80}\n".format(""))
+
                 args_nolay = [path_data_input, file_out, dict_pages, dict_arts]
-                args_nolay += [list_mdp, dict_gbc, dict_layouts]
+                args_nolay += [list_mdp, dict_gbc, dict_layouts, list_features]
                 without_layout.FinalResultsMethodNoLayout(*args_nolay)
             logger.info('End of GET')
         except Exception as e:

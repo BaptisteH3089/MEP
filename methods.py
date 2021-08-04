@@ -20,33 +20,59 @@ class MyException(Exception):
 
 def GetYClasses(big_y):
     """
-    Renvoie un liste de tuples [(vect_emp, ind_classe), ...]
+    Associates a label to a vector location (x, y, width, height).
+
+    Parameters
+    ----------
+    big_y: numpy array
+        A matrix associated to a layout.
+        dim(big_y) = (nb_articles_in_page, 4)
+
+    Returns
+    -------
+    list of tuples
+        [(numpy.array([x0, y0, w0, h0]), 0), ...].
+
     """
+
     n = big_y.shape[0]
     return [(big_y[i], i) for i in range(n)]
 
 
-def TransformArrayIntoClasses(big_y, list_classes):
+def TransformArrayIntoClasses(big_y, list_classes, tol=10):
     """
-    big_y : matrice de la forme nb_arts * 4. Les colonnes sont (x, y, w, h).
-    list_classes : liste de la forme [(vect_emp, ind_classe), ...]
-    Transforme la matrice big_y en vecteur avec des classes.
-    Renvoie un numpy array de longueur nb_arts avec des classes (0, 1, 2, ...)
-    au lieu d'un vect_emp.
-    little_y est de dimension 1
+    Uses the correspondance between the vect_modules and the labels of these
+    vectors to convert a layout into an array with the labels of the modules.
+
+    Parameters
+    ----------
+    big_y: numpy array
+        A matrix associated to a layout.
+        dim(big_y) = (nb_arts, 4)
+
+    list_classes: list of tuples
+        list_classes = [(numpy.array([x0, y0, w0, h0]), 0), ...].
+
+    tol: int (default=10)
+        The max difference allows between the elements of the vect_module of
+        big_y and the elements in list_classes.
+
+    Returns
+    -------
+    little_y: numpy array
+        little_y = np.array([1, 0, 2, 3]) for a big_y with 4 articles.
     """
     n = big_y.shape[0]
     little_y = np.zeros(n)
-    # Pour chaque élément de la matrice big_y, on regarde tous les éléments
-    # vect_emp de la liste list_classes.
+    # For each vect_module of the matrix big_y, we search for a match into
+    # the "list_classes"
     for i in range(n):
-        # Si la diff max de tous les éléments est < 20, on attribue la classe
-        # au vect_emp
-        if max(abs(big_y[i] - list_classes[i][0])) < 20:
+        # If the max diff is < 10, there is a match
+        if max(abs(big_y[i] - list_classes[i][0])) < tol:
             little_y[i] = list_classes[i][1]
         else:
             for j in range(n):
-                if max(abs(big_y[i] - list_classes[j][0])) < 20:
+                if max(abs(big_y[i] - list_classes[j][0])) < tol:
                     little_y[i] = list_classes[j][1]
                     break
     return little_y
@@ -54,10 +80,27 @@ def TransformArrayIntoClasses(big_y, list_classes):
 
 def GetVectorArticleInput(dico_vector_input, features):
     """
-    Transforme le dico_vector_input en un vecteur.
-    Renvoie un tuple (id_art, vecteur_art).
-    vect_art est un numpy array de dimension 2.
-    Transforme les variables secTitle, title, etc... en indicatrices.
+    Returns a tuple with the id of the article and the vector article with
+    the features in "features".
+
+    Parameters
+    ----------
+    dico_vector_input: dict
+        dico_vector_input = {'melodyId': ..., 'title': ..., ...}.
+
+    features: list of strings
+        DESCRIPTION.
+
+    Raises
+    ------
+    MyException
+        If one feature or more is not in the dict_vector_input.
+
+    Returns
+    -------
+    tuple
+        (melodyId_article, numpy.array(vector_article)).
+
     """
     features_left = set(features) - set(dico_vector_input.keys())
     if len(features_left) > 0:
@@ -67,15 +110,9 @@ def GetVectorArticleInput(dico_vector_input, features):
     other_features = ['abstract', 'syn', 'exergue', 'title', 'secTitle']
     other_features += ['subTitle', 'supTitle']
     for feature in features:
-        if feature == 'nbSign':
-            if dico_vector_input['nbSign'] == 0:
-                print("NbSign == 0 l.176 - GetVectorArticleInput")
-                vector_art.append(dico_vector_input[feature])
-            else:
-                vector_art.append(dico_vector_input[feature])
-        # Conversion des variables en indicatrices
-        # Normalement plus la peine, comme déjà fait auparavant
-        elif feature in other_features:
+        vector_art.append(dico_vector_input[feature])
+        if feature in other_features:
+            # We only add indicators functions
             if dico_vector_input[feature] > 0:
                 vector_art.append(1)
             else:
@@ -87,21 +124,35 @@ def GetVectorArticleInput(dico_vector_input, features):
 
 def GetTrainableData(dico_bdd, list_id_pages, y_ref, features):
     """
-    features est une liste avec toutes les features qu'on veut utiliser pour
-    former la grande matrice X_input
-    les features à garder :
-        - nbSign
-        - nbBlock
-        - abstract
-        - syn
-        - exergue
-        - title
-        - secTitle
-        - supTitle
-        - subTitle
-        - nbPhoto
-        - aireImg
-        - aireTot ?
+
+    Parameters
+    ----------
+    dico_bdd: dict
+        The usual dict with all the info about the pages.
+
+    list_id_pages: list
+        list_id_pages = [id_page0, id_page1, ...].
+
+    y_ref: numpy array
+        The matrix associated to a layout.
+
+    features: list of features
+        List with the features used to create the matrix X.
+
+    Raises
+    ------
+    MyException
+        If there is an error during the concatenation or the transformation
+        into classes.
+
+    Returns
+    -------
+    very_big_x: numpy array
+        The matrix with all the vectors articles concatenated by lines.
+
+    very_big_y: numpy array
+        The matrix with all the labels.
+
     """
     # Transformation de big_y into simpler classes
     classes = GetYClasses(y_ref)
@@ -161,7 +212,7 @@ def GetTrainableData(dico_bdd, list_id_pages, y_ref, features):
                 dim_x_all_arts = x_all_articles.shape
                 str_exc = "Error with np.concatenate"
                 str_exc += "((very_big_x, x_all_articles))\n"
-                str_exc += "very_big_x.shape : {}\n".format(dim_x)
+                str_exc += "very_big_x.shape : {}\n".format(dim_very_big_x)
                 str_exc += "x_all_arts.shape : {}\n".format(dim_x_all_arts)
                 raise MyException(str_exc + str(e))
             try:
@@ -175,17 +226,41 @@ def GetTrainableData(dico_bdd, list_id_pages, y_ref, features):
     return very_big_x, very_big_y
 
 
-def GetPossibilitiesMLV(probas_preds, X_rand, dico_id_vect_art):
+def GetPossibilitiesMLV(probas_preds, X_input, dico_id_vect_art):
     """
-    Renvoie un dictionnaire avec pour chaque emp les articles qui ont obtenus
-    une proba prédite supérieure à 30%.
+    Returns a dict that indicates for each location the articles that obtained
+    a predicted proba > 30%.
+
+    Parameters
+    ----------
+    probas_preds: numpy array
+        The predicted probas for each article and each module.
+
+    X_input: numpy array
+        The matrix with all the articles input.
+
+    dico_id_vect_art: dict
+        DESCRIPTION.
+
+    Raises
+    ------
+    MyException
+        If we don't find any module with a proba > 30%.
+
+    Returns
+    -------
+    dico_possib_emplacements: dict
+        dico_possib_emplacements = {emp: [(score_pred, id_article), ...],
+                                    ...}.
+
     """
     dico_possib_emplacements = {i: [] for i in range(probas_preds.shape[1])}
     for i in range(len(probas_preds)):
         preds_art = probas_preds[i]
-        vect_art = X_rand[i]
+        vect_art = X_input[i]
         f = lambda x: np.allclose(x[1], vect_art, atol=2)
         res_id_artx = list(filter(f, dico_id_vect_art.items()))
+
         if len(res_id_artx) == 0:
             val_dico = dico_id_vect_art.values()
             str_exc = "No vect_art found in the dico_id_vect_art which "
@@ -193,17 +268,21 @@ def GetPossibilitiesMLV(probas_preds, X_rand, dico_id_vect_art):
             str_exc += "vect_art: {}\n".format(vect_art)
             str_exc += "dico_id_vect_art.values(): {}".format(val_dico)
             raise MyException(str_exc)
-        id_x_rand_i = res_id_artx[0][0]
-        # On conserve les classes avec proba > 30%
+
+        id_x_input_i = res_id_artx[0][0]
+        # We keep the classes with proba > 30%
         liste_tuple = [(i, pred) for i, pred in enumerate(preds_art)]
         poss_classes = list(filter(lambda x: x[1] >= 0.3, liste_tuple))
+
         if len(poss_classes) == 0:
             nice_liste = ["{:.2f}".format(score) for _, score in liste_tuple]
             str_exc = "No possibility for that article. Predicted probas: {}."
             raise MyException(str_exc.format(nice_liste))
-        # Ajout des classes à un dico i
+
+        # Add classes to a dict
         for emp, score_pred in poss_classes:
-            dico_possib_emplacements[emp].append((score_pred, id_x_rand_i))
+            dico_possib_emplacements[emp].append((score_pred, id_x_input_i))
+
     return dico_possib_emplacements
 
 
@@ -214,18 +293,55 @@ def MethodeMLV(dico_bdd,
                dico_id_vect_art,
                list_features):
     """
-    Retourne les possibilités de placements d'articles dans un MDP en se
-    basant sur les prédictions d'un RFC entraîné sur les pages construites
-    avec le même MDP.
+    Returns the list of articles that can be inserted in each module in a dict.
+    We use a RFC trained on the pages build with the same layout to give a
+    score that corresponds to the fit of the article in the given module.
+
+    Parameters
+    ----------
+    dico_bdd: dict
+        The usual dict with all the info about the pages.
+
+    liste_id_pages: list of float
+        The list with all the ids of pages that we use to create the matrixes
+        X and Y.
+
+    mdp_ref: numpy array
+        The matrix associated to the layout input.
+        dim(mdp_ref) = (nb_modules_layout, 4)
+
+    X_input: numpy array
+        The matrix with al the vectors articles input.
+        dim(X_input) = (nb_articles_input, len(list_features))
+
+    dico_id_vect_art: dict
+        dico_id_vect_art = {id_article: vector_article, ...}.
+
+    list_features: list of strings
+        The list with the features used to create the vectors articles.
+
+    Raises
+    ------
+    MyException
+        If the matrix used to train the model hasn't to right number of
+        columns.
+
+    Returns
+    -------
+    dico_plcmts_tuple: dict
+        dico_plcmts_tuple = {tuple_module_xywh: [id_art, ...], ...}.
+
     """
     # Création des matrices X avec les articles et Y avec les classes des EMP
     X, Y = GetTrainableData(dico_bdd, liste_id_pages, mdp_ref, list_features)
+
     # Vérification des tailles des matrices X, Y
     if X.shape[0] != Y.shape[0]:
         str_exc = "Les matrices X et Y n'ont pas le même nombre de lignes.\n"
         str_exc += "X.shape: {}\n".format(X.shape)
         str_exc += "Y.shape: {}".format(Y.shape)
         raise MyException(str_exc)
+
     # Les matrices X_input et X doivent avoir le même nombre de colonnes
     if X.shape[1] != X_input.shape[1]:
         str_exc = "Les matrices X et X_input n'ont pas le mm nb de cols.\n"
@@ -234,6 +350,7 @@ def MethodeMLV(dico_bdd,
         str_exc += "X[0]: {}\n".format(X[0])
         str_exc += "X_input[0]: {}".format(X_input[0])
         raise MyException(str_exc)
+
     param_model = {'max_depth': 5,
                    'min_samples_split': 4,
                    'min_samples_leaf': 4,
@@ -241,24 +358,46 @@ def MethodeMLV(dico_bdd,
                    'max_leaf_nodes': 10}
     clf = RandomForestClassifier(**param_model)
     clf.fit(X, Y)
+
     # Matrix with the predicted probas for each article input
     probas_preds = clf.predict_proba(X_input)
+
     # Obtention de possibilités de placement des articles
     l_args = [probas_preds, X_input, dico_id_vect_art]
     dico_poss_plcmts = GetPossibilitiesMLV(*l_args)
+
     # Remplacer les emplacements 0, ..., 3 par les vrais tuples EMP
     classes = GetYClasses(mdp_ref)
+
     dico_plcmts_tuple = {}
     for emp, possib_art in dico_poss_plcmts.items():
         array_emp = list(filter(lambda x: x[1] == emp, classes))[0][0]
         dico_plcmts_tuple[tuple(array_emp)] = possib_art
-    size_each_location = [len(x) for x in dico_poss_plcmts.values()]
+
     return dico_plcmts_tuple
 
 
 def GetDicoCarton(mdp_ref, X_col_img):
     """
-    Création d'un dico avec chaque carton et les caractéristiques dedans.
+    Creates a dict with the characteristics of each module.
+
+    Parameters
+    ----------
+    mdp_ref: numpy array
+        The matrix associated to the layout input.
+
+    X_col_img: list of lists
+        X_col_img = [[d[x]
+                      for x in ['nbCol', 'nbImg', 'aireTotImgs', 'aireTot']
+                      for for dict_carton in dict_mdp_input.values()]
+
+    Returns
+    -------
+    dico_cartons: dict
+        dico_cartons = {0: {'x': ..., 'y':..., 'width': ...,
+                            'height': ..., 'nbImg': ..., 'aireImg': ...},
+                        1: {...},
+                        ...}.
     """
     keys_model = ['x', 'y', 'width', 'height', 'nbCol', 'nbImg', 'aireImg']
     keys_model += ['aireTot']
@@ -273,7 +412,34 @@ def GetDicoCarton(mdp_ref, X_col_img):
 
 def FiltreArticles(dico_id_artv, aire_tot_cart, aire_img_cart, ind_features):
     """
-    ind_features = [ind_nb_sign, ind_aire_tot, ind_aire_img]
+
+    Parameters
+    ----------
+    dico_id_artv: dict
+        dico_id_artv = {id_article: vect_article, ...}.
+
+    aire_tot_cart: float
+        The total area of the module.
+
+    aire_img_cart: float
+        the total area of the images in the module.
+
+    ind_features: list
+        ind_features = [ind_nb_sign, ind_aire_tot, ind_aire_img].
+
+    Raises
+    ------
+    MyException
+        If there is no possibility of articles for the module.
+
+    Returns
+    -------
+    arts_left: list
+        The ids of articles that can be inserted in that module.
+
+    """
+    """
+
     - on fait le filtre sur le nb de caract d'un art - aire des images
     convertie en nb de caract
     - si le MDP comprend des images on doit soustraire l'aire des images
@@ -284,15 +450,17 @@ def FiltreArticles(dico_id_artv, aire_tot_cart, aire_img_cart, ind_features):
         - on enlève le filtre avec nb_img, on fait juste avec aire_img
         - suppression condition aire img < 2/3 * area_mdp
     """
-    ind_nb_sign = ind_features[0]
+
     # ind_aire_tot_art
     tot = ind_features[1]
     # ind_area_img_art
     img = ind_features[2]
+
     print("{:<25} {:^25} {:>25}".format('TOT', 'IMG', 'TXT'))
     for ida, artv in dico_id_artv.items():
         txt = artv[0][tot] - artv[0][img]
         print("{:<25} {:^25} {:>25}".format(artv[0][tot], artv[0][img], txt))
+
     # Filtre sur l'aire des images
     print("L'aire des images du carton : {}".format(aire_img_cart))
     fcn = lambda x: (0.5 * aire_img_cart <= x[1][0][img] <= 1.5 * aire_img_cart)
@@ -300,10 +468,12 @@ def FiltreArticles(dico_id_artv, aire_tot_cart, aire_img_cart, ind_features):
     print("les ids des articles qui correspondent : {}".format(arts_left_img))
     dico_id_artv_img = {ida: dicoa for ida, dicoa in dico_id_artv.items()
                         if ida in arts_left_img}
+
     if len(arts_left_img) == 0:
         str_exc = 'No article for that carton with the filter on the area '
         str_exc += 'of the images.'
         raise MyException(str_exc)
+
     # Filtre sur l'aire du texte
     diff = aire_tot_cart - aire_img_cart
     print("L'aire du txt du carton : {}".format(diff))
@@ -313,20 +483,22 @@ def FiltreArticles(dico_id_artv, aire_tot_cart, aire_img_cart, ind_features):
     print("les ids des articles qui correspondent : {}".format(arts_left_txt))
     dico_id_artv_txt = {ida: dicoa for ida, dicoa in dico_id_artv_img.items()
                         if ida in arts_left_txt}
+
     if len(arts_left_txt) == 0:
         str_exc = 'No article for that carton with the filter on the area '
         str_exc += 'of the text.'
         raise MyException(str_exc)
+
     # Filtre sur l'aire totale
     print("L'aire du carton : {}".format(aire_tot_cart))
     fcn = lambda x: (0.7 * aire_tot_cart < x[1][0][tot] < 1.3 * aire_tot_cart)
     arts_left = [ida for ida, _ in filter(fcn, list(dico_id_artv_txt.items()))]
     print("les ids des articles qui correspondent : {}".format(arts_left))
-    dico_id_artv_left = {ida: dicoa for ida, dicoa in dico_id_artv_txt.items()
-                         if ida in arts_left_txt}
+
     if len(arts_left) == 0:
         str_exc = 'No art. for that carton with the filter on the total area'
         raise MyException(str_exc)
+
     return arts_left
 
 
@@ -373,7 +545,7 @@ def ScoreArticle(dico_id_artv, dico_cartons, id_art, id_carton, ind_features):
     try:
          good_id_art = int(id_art)
     except Exception as e:
-        print("Error with int(id_art).\n")
+        print(f"Error with int(id_art): {e}.\n")
         print("type(id_art): {}. id_art: {}".format(type(id_art), id_art))
         good_id_art = id_art
     # A EVENTUELLEMENT CHANGER. Ajout argument ind_nb_sign ?
@@ -431,19 +603,23 @@ def FiltreBlocs(dict_mdp_input, list_articles_input, dico_cartons, emp):
         'listeAireImgs': [8494], 'aireTot': 44607,
         'blocs': [{'labels':, ...}, {}, ...]}
     list_articles_input = [{'blocs': [], melodyId:..., ...}]
+
     UPDATE 09/06: We do an inclusion instead of an equality the last lines
+
     """
     liste_arts_poss = []
     # Déjà, il faut que je récupère le dico du carton
     x_cart, y_cart = dico_cartons[emp]['x'], dico_cartons[emp]['y']
-    f = lambda x: (np.allclose(x[1]['x'], x_cart, atol=0.5)) & \
-        (np.allclose(x[1]['y'], y_cart, atol=1))
+    f = lambda x: (np.allclose(x[1]['x'], x_cart, atol=10)) & \
+        (np.allclose(x[1]['y'], y_cart, atol=10))
     carton_found = dict(filter(f, dict_mdp_input.items()))
     if len(carton_found) != 1:
-        str_exc = 'Error in FiltreBlocs \n'
-        str_exc += 'carton found: {}'.format(carton_found)
+        str_exc = 'Error in FiltreBlocs. len(carton_found) != 1 \n'
+        str_exc += 'carton found: {}\n'.format(carton_found)
         str_exc += '(x_cart, y_cart): ({}, {}) \n'.format(x_cart, y_cart)
-        str_exc += 'dict_mdp_input: {}'.format(dict_mdp_input)
+        str_exc += 'dict_mdp_input: {}\n'
+        for id_mdp, dict_mdp in dict_mdp_input.items():
+            str_exc += f"{id_mdp}: x={dict_mdp['x']}, y={dict_mdp['y']} \n"
         raise MyException(str_exc)
     id_carton = list(carton_found.keys())[0]
     # print("The carton found with x and y : \n{}".format(carton_found.values()))
@@ -469,12 +645,14 @@ def FiltreBlocs(dict_mdp_input, list_articles_input, dico_cartons, emp):
 def MethodeNaive(mdp_ref, X_nbImg, X_input, dico_id_artv, ind_features,
                  dict_mdp_input, list_articles_input):
     """
+
     Renvoie des ventilations en se basant sur le nb d'images dans les cartons
     et l'aire du carton par rapport au nombre de signes des articles et à
     l'aire totale des images.
     Pour faire simple, donne toutes les possibilités de placements tq les
     articles correspondent à peu près aux cartons
     ind_features = [ind_nb_sign, ind_aire_tot, ind_area_img]
+
     """
     dico_cartons = GetDicoCarton(mdp_ref, X_nbImg)
     # Création du dico dico_possib_placements

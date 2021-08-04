@@ -212,6 +212,7 @@ list_features = ['nbSign', 'nbBlock', 'abstract', 'syn']
 list_features += ['exergue', 'title', 'secTitle', 'supTitle']
 list_features += ['subTitle', 'nbPhoto', 'aireImg', 'aireTot']
 list_features += ['petittitre', 'quest_rep', 'intertitre']
+
 X, Y = module_art_type.MatricesTypeArticle(dict_pages, list_features)
 print(f"X.shape: {X.shape}")
 print(f"Y.shape: {Y.shape}")
@@ -230,7 +231,6 @@ if args.opti:
     print(f"args opti: {args.opti}")
     best_params = module_art_type.OptiThresholds(X, Y, Xc, Yc)
 
-
 ##############################################################################
 #                                                                            #
 #                     TUNING PARAMS RFC - FEATURES                           #
@@ -241,11 +241,11 @@ if args.tuning:
     print("{:-^80}".format("TUNING"))
     print(f"args tuning: {args.tuning}")
     # With default parameters f1-score = 80%
-    rfc = RandomForestClassifier()
-    parameters = {'n_estimators': range(150, 251, 20),
-                  'criterion': ['gini', 'entropy']}
+    rfc = RandomForestClassifier(n_estimators=150,
+                                 criterion='entropy',
+                                 min_samples_split=8)
+    parameters = {'max_features': range(3, 16)}
     clf = GridSearchCV(rfc, parameters, verbose=4, scoring='f1_macro')
-
     X, Y = module_art_type.MatricesTypeArticle(dict_pages, list_features)
     print(f"A line vector of X: {X[0]}")
     clf.fit(X, Y)
@@ -291,3 +291,5 @@ if args.concat:
             print(f"[fold {i}] F1-score concatenation RFC: {score:.3f}")
         # The results are not good, better than just the content but worst
         # than with only the features.
+
+

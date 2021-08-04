@@ -134,7 +134,6 @@ def TrainValidateModels(dico_bdd,
         param = {'objective': 'multi:softmax',
                  'num_class': max(set(Y)) + 1,
                  'eval_metric': 'mlogloss'}
-        # print(f"param['num_class']: {param['num_class']}")
         bst = xgb.train(param, dtrain, num_round)
         preds_xgb = bst.predict(dtest)
         score_xgb = f1_score(Y[test], preds_xgb, average='macro')
@@ -225,8 +224,6 @@ while len(pages_p_art) > 50:
     nb_min += 10
     pages_p_art = SelectionModelesPages(list_mdp_data, nb_modules_layout, nb_min)
     print(f"Number of layouts={len(pages_p_art)} with min number pages={nb_min}")
-
-
 
 
 all_durations, all_means, all_mins = [], [], []

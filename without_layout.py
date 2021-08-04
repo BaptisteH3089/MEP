@@ -22,6 +22,22 @@ class MyException(Exception):
 
 
 def ConstraintArea(all_ntuple):
+    """
+
+    Parameters
+    ----------
+    all_ntuple: list of tuples
+        List with all the possibilities of pages with nb_arts in it.
+        all_ntuple = [([dicta[x] for x in list_feat], ...), ...].
+
+    Returns
+    -------
+    possib_area: list of tuples
+        possib_area = [(id1, id2, id3), ...].
+        The length of the tuples corresponds to the lengths of the tuples of
+        all_ntuple.
+
+    """
     # Now we select the ones that respect the constraint
     mean_area = 95000
     possib_area = []
@@ -32,42 +48,74 @@ def ConstraintArea(all_ntuple):
         if 0.92 * mean_area <= sum_art <= 1.08 * mean_area:
             # If constraint ok, we add the id of the article
             possib_area.append(tuple([art[-1] for art in ntuple]))
-    print("{:<35} {:>25}".format("Constraint area", len(possib_area)))
-    print("{:<35} {:>25}".format("Mean area", np.mean(all_sums)))
+    print("{} {} articles left.".format("Constraint area", len(possib_area)))
+    print("{} {:1f}.".format("Mean area", np.mean(all_sums)))
     return possib_area
 
 
-# What's the next constraint ? -> Number of images ? (> 2)
-# Now we select the ones that respect the constraint
 def ConstraintImgs(all_ntuple):
+    """
+
+    Selects the pages with at least 1 images in it.
+
+    Parameters
+    ----------
+    all_ntuple: list of tuples
+        List with all the possibilities of pages with nb_arts in it.
+        all_ntuple = [([dicta[x] for x in list_feat], ...), ...].
+
+    Returns
+    -------
+    possib_imgs: list of tuples
+        possib_area = [(id1, id2, id3), ...].
+        The length of the tuples corresponds to the lengths of the tuples of
+        all_ntuple.
+        The ntuples are the combinations of articles that respect the
+        constraint "image".
+
+    """
     possib_imgs, all_nb_imgs = [], []
     for ntuple in all_ntuple:
         try:
             nb_imgs = sum((art[1] for art in ntuple))
         except Exception as e:
-            print("Error with the sum of the nbImg")
-            print(e)
-            print("ntuple", ntuple)
-            print("nb_imgs", nb_imgs)
+            str_prt = (f"Error with the sum of the nbImg: {e}.\n"
+                       f"ntuple: {ntuple}.\nnb_imgs: {nb_imgs}")
+            print(str_prt)
         all_nb_imgs.append(nb_imgs)
         if nb_imgs >= 1:
             possib_imgs.append(tuple([art[-1] for art in ntuple]))
-    print("{:^35} {:>25}".format("Constraint images", len(possib_imgs)))
-    print("{:^35} {:>25}".format("Mean nb of images", np.mean(all_nb_imgs)))
+    print("{} {} articles left.".format("Constraint images", len(possib_imgs)))
+    print("{} {}.".format("Mean nb of images", np.mean(all_nb_imgs)))
     return possib_imgs
 
 
 def ConstraintScore(all_ntuple):
-    # Importance of the articles
-    # -> At least one article with score > 0.5
+    """
+    Selects the pages with at least an article with a score > 0.35
+
+    Parameters
+    ----------
+    all_ntuple: list of tuples
+        List with all the possibilities of pages with nb_arts in it.
+        all_ntuple = [([dicta[x] for x in list_feat], ...), ...].
+
+    Returns
+    -------
+    possib_score: list of tuples
+        possib_score = [(idA, idB, ...), ...].
+        The ntuples in possib_score correspond to the ones that satisfy the
+        constraint "score".
+
+    """
     possib_score, all_max_score = [], []
     for ntuple in all_ntuple:
         max_score = max((art[2] for art in ntuple))
         all_max_score.append(max_score)
-        if max_score >= .5:
+        if max_score >= .35:
             possib_score.append(tuple([art[-1] for art in ntuple]))
-    print("{:^35} {:>25}".format("Constraint score", len(possib_score)))
-    print("{:^35} {:>25}".format("Mean score", np.mean(all_max_score)))
+    print("{} {}.".format("Constraint score", len(possib_score)))
+    print("{} {}.".format("Mean score", np.mean(all_max_score)))
     return possib_score
 
 
@@ -78,41 +126,117 @@ def ConstraintScore(all_ntuple):
 ##############################################################################
 
 
-def SelectionPagesNarts(dico_bdd, nb_arts):
+def SelectionPagesNarts(dict_pages, nb_arts):
+    """
+    Selects in the dict_pages the pages with "nb_arts" articles.
+
+    Parameters
+    ----------
+    dict_pages: dict of dict
+        The usual dict with all the infos on the pages.
+
+    nb_arts: int
+        The number of articles in the page.
+
+    Returns
+    -------
+    dico_narts: dict of dict
+        Of the same form as dict_pages but with only pages with "nb_arts"
+        articles.
+        dico_narts = {id_page: dico_articles}.
+
+    """
     dico_narts = {}
-    for key in dico_bdd.keys():
-        if len(dico_bdd[key]['articles']) == nb_arts:
-            dico_narts[key] = dico_bdd[key]['articles']
+    for key in dict_pages.keys():
+        if len(dict_pages[key]['articles']) == nb_arts:
+            dico_narts[key] = dict_pages[key]['articles']
     return dico_narts
 
 
-def SelectionMDPNarts(list_mdp_data, nb_arts):
+def SelectionMDPNarts(list_mdp_data, nb_modules):
+    """
+    Selects the layouts with "nb_modules" modules.
+
+    Parameters
+    ----------
+    list_mdp_data: list of tuples
+        list_mdp_data = [(nb, array, list_ids), ...].
+
+    nb_modules: int
+        the desired number of modules.
+
+    Returns
+    -------
+    list_mdp_narts: list of lists
+        list_mdp_narts = [[array_layout, list_ids], ...].
+
+    """
     list_mdp_narts = []
     for nb, mdp, list_ids in list_mdp_data:
-        if mdp.shape[0] == nb_arts:
+        if mdp.shape[0] == nb_modules:
             list_mdp_narts.append([mdp, list_ids])
     return list_mdp_narts
 
 
 def VerificationPageMDP(dico_narts, list_mdp_narts):
+    """
+    Checks if the ids of pages in the object "list_mdp_narts" are also in the
+    list "list_mdp_narts" and consequently associated to a layout.
+
+    Parameters
+    ----------
+    dico_narts: dict of dict
+        dico_narts = {id_page: dict_articles_page_with_narts, ...}.
+
+    list_mdp_narts: list of lists
+        list_mdp_narts = [[array_mdp_narts, list_ids], ...].
+
+    Returns
+    -------
+    str
+        Indicates the number of pages in our data.
+
+    """
     list_all_matches = []
     for key in dico_narts.keys():
         list_match = [1 for _, list_ids in list_mdp_narts if key in list_ids]
         list_all_matches.append(sum(list_match))
-    str_prt = "The nb of 0 match found"
-    # print("{:<35} {:>35}".format(str_prt, list_all_matches.count(0)))
-    str_prt = "The total nb of pages in our data"
-    return f"{str_prt:<35} {len(dico_narts):>10}"
+    return f"The total nb of pages in our data: {len(dico_narts)}"
 
 
-# OK, there are some duplicates
-# I need to create the vector page
-# But what to put inside them ?
 def CreationVectXY(dico_narts,
                    dict_arts,
                    list_mdp_narts,
                    list_features,
                    nb_pages_min):
+    """
+    Creates the matrices X and Y with the vect_pages and the labels of the
+    layouts. We keep only layouts with at least "np_pages_min" pages using it.
+
+    Parameters
+    ----------
+    dico_narts: dict
+        The dict with only the pages with the wanted number of articles.
+        dico_narts = {id_page: dict_articles, ...}
+
+    dict_arts: dict of dict
+        dict_arts = {id_article: dict_article, ...}.
+
+    list_mdp_narts: list with only the mdp with the good number of modules.
+        list_mdp_narts = [[array_layout, list_ids], ...].
+
+    list_features: list of strings
+        The list with the features used to create X.
+
+    nb_pages_min: int
+        The minimum number of pages per layout.
+
+    Returns
+    -------
+    vect_XY: list of tuples
+        vect_XY = [(vect_page, array_layout), ...].
+
+    """
     print(f"CreationVectXY. Initial length of dico_narts: {len(dico_narts)}")
     vect_XY = []
     for key in dico_narts.keys():
@@ -128,7 +252,9 @@ def CreationVectXY(dico_narts,
                 if key in list_ids:
                     vect_XY.append((vect_page, mdp))
                     break
-    print("{:<35} {:>35}".format("The number of pages kept", len(vect_XY)))
+    str_prt = (f"With a min number of {nb_pages_min} pages per layout, we "
+               f"keep {len(vect_XY)} pages to train the model.")
+    print(str_prt)
     return vect_XY
 
 
@@ -136,10 +262,24 @@ def CreationVectXY(dico_narts,
 def CreationDictLabels(vect_XY):
     """
     Returns {0: np.array([...]),
-            1: np.array([...]),
-            ...}
+             1: np.array([...]),
+             ...}
     The values correspond to the layouts.
+
+    Parameters
+    ----------
+    vect_XY: list of tuples
+        vect_XY = [(array_vect_page, array_layout), ...].
+
+    Returns
+    -------
+    dict_labels: dict
+        dict_labels = {label_array_layout: array_layout, ...}.
+        label_array_layout is just an integer starting from 0 and increasing
+        by one unit.
+
     """
+
     label = 0
     dict_labels = {}
     for _, mdp in vect_XY:
@@ -150,13 +290,29 @@ def CreationDictLabels(vect_XY):
         if find is False:
             dict_labels[label] = mdp
             label += 1
-    print("{:<35} {:>35}".format("The nb of labels in that dict", label + 1))
+    print("{} {}.".format("The nb of labels in that dict", label + 1))
     return dict_labels
 
 
 def CreationXY(vect_XY, dict_labels):
     """
     Creation of the matrix X and Y used to train a model.
+
+    Parameters
+    ----------
+    vect_XY: list of tuples
+        vect_XY = [(array_vect_page, array_layout), ...].
+
+    dict_labels: dict
+        dict_labels = {0: array_layout_0, 1: array_layout_1, ...}.
+
+    Returns
+    -------
+    numpy array
+        big_X: The array with the vectors page concatenated.
+    numpy array
+        better_big_Y: The array with the labels of the layouts.
+
     """
     if len(vect_XY) < 5:
         return [], []
@@ -175,57 +331,68 @@ def CreationXY(vect_XY, dict_labels):
                     except:
                         print("ERROR")
                         print(big_Y, label)
-    # For now, there is an issue with big_Y since we can have something like :
-    # set(big_Y) = {0, 1, 4, 5, 8}
-    # I want to have set(big_Y) = {0, 1, 2, 3, 4}
+    # For now, there is an issue with big_Y since we can have something like:
+    # set(big_Y) = {0, 1, 4, 5, 8}. I want to have set(big_Y)={0, 1, 2, 3, 4}.
     dict_corres_labels = {label: i for i, label in enumerate(set(big_Y))}
-    better_big_Y = [dict_corres_labels[label] for label in big_Y]
-    # print(f"without_layout:CreationXY set(better_big_Y): {set(better_big_Y)}")
-    return big_X, np.array(better_big_Y)
+    better_big_Y = np.array([dict_corres_labels[label] for label in big_Y])
+    return big_X, better_big_Y
 
 
-def CreateXYFromScratch(dico_bdd,
+def CreateXYFromScratch(dict_pages,
                         dict_arts,
                         list_mdp,
                         nb_arts,
                         nbpg_min,
                         list_feats):
     """
-    Used in the method with files.
+    Returns the matrices X and Y such that X is composed of pages with
+    "nb_arts" articles in it and the pages should use layouts that appear more
+    than "nbpg_min" times in the data.
 
     Parameters
     ----------
-    dico_bdd : TYPE
-        DESCRIPTION.
-    dict_arts : TYPE
-        DESCRIPTION.
-    list_mdp : TYPE
-        DESCRIPTION.
-    nb_arts : TYPE
-        DESCRIPTION.
-    nbpg_min : TYPE
-        DESCRIPTION.
-    list_feats : TYPE
-        DESCRIPTION.
+    dict_pages: dict of dict
+        The usual dict with all the data.
+
+    dict_arts: dict
+        The dict with the characteristics of the articles.
+        dict_arts = {id_article: dict_article, ...}
+
+    list_mdp: list of tuples
+        list_mdp = [(nb, array, list_ids), ...].
+
+    nb_arts: int
+        The wanted number of articles in the pages used to train.
+
+    nbpg_min: int
+        The min number of pages with each of the layouts in Y.
+
+    list_feats: list of strings
+        The features used to build the vectors page.
 
     Returns
     -------
-    X : TYPE
-        DESCRIPTION.
-    Y : TYPE
-        DESCRIPTION.
-    dict_labels : TYPE
-        DESCRIPTION.
+    X: numpy array
+        Concatenation of vectors page. The number of columns = nb of features.
+
+    Y: numpy array
+        Vector column with the labels of the layouts.
+
+    dict_labels: dict
+        Dict that gives the correspondence between label_layout and
+        array_layout.
 
     """
-    dico_narts = SelectionPagesNarts(dico_bdd, nb_arts)
-    print(f"SelectionPagesNarts return a dict of length: {len(dico_narts)}")
+    dico_narts = SelectionPagesNarts(dict_pages, nb_arts)
+    print(f"SelectionPagesNarts returns a dict of length: {len(dico_narts)}.")
     list_mdp_narts = SelectionMDPNarts(list_mdp, nb_arts)
-    print(f"SelectionMDPNarts returns an object of length: {len(list_mdp_narts)}")
-    print(f"VerificationPageMDP: {VerificationPageMDP(dico_narts, list_mdp_narts)}")
+    print(f"SelectionMDPNarts returns an object of length: {len(list_mdp_narts)}.")
+
+    print(f"VerificationPageMDP: {VerificationPageMDP(dico_narts, list_mdp_narts)}.")
     args_xy = [dico_narts, dict_arts, list_mdp_narts, list_feats, nbpg_min]
     vect_XY = CreationVectXY(*args_xy)
     dict_labels = CreationDictLabels(vect_XY)
+
     try:
         X, Y = CreationXY(vect_XY, dict_labels)
     except Exception as e:
@@ -233,6 +400,7 @@ def CreateXYFromScratch(dico_bdd,
         str_e += f"\n{e}\n"
         str_e += f"vect_XY: \n{vect_XY}\n dict_labels: \n{dict_labels}"
         raise MyException(str_e)
+
     return X, Y, dict_labels
 
 
@@ -245,114 +413,156 @@ def CreateXYFromScratch(dico_bdd,
 
 def PredsModel(X, Y, list_vect_page, trained_gbc):
     """
-    Used in the method with files.
 
     Parameters
     ----------
-    X : TYPE
-        DESCRIPTION.
-    Y : TYPE
-        DESCRIPTION.
-    list_vect_page : TYPE
-        DESCRIPTION.
-    trained_gbc :
+    X: numpy array
+        The matrix with the vectors page.
+
+    Y: numpy array
+        Vector column with the labels.
+
+    list_vect_page: list of numpy array
+        list_vect_page = [vect_page0, ...].
+
+    trained_gbc:
         A trained Gradient Boosting Classifier.
 
     Returns
     -------
-    preds_gbc : TYPE
-        DESCRIPTION.
+    preds_gbc: array
+        The predicted probas for each vector page. The elements (i, j) of
+        preds_gbc corresponds to the likelyhood of the layouts j for the
+        vector page i.
 
     """
-    # gbc = GradientBoostingClassifier().fit(X, Y)
+
     for i, vect_page in enumerate(list_vect_page):
-        if i == 0: matrix_input = vect_page
-        else: matrix_input = np.concatenate((matrix_input, vect_page))
+        if i == 0:
+            matrix_input = vect_page
+        else:
+            matrix_input = np.concatenate((matrix_input, vect_page))
+
     str_prt = "The shape of the matrix input"
-    print("{:<35} {:>35}".format(str_prt, str(matrix_input.shape)))
+    print("{} {}".format(str_prt, str(matrix_input.shape)))
+
     preds_gbc = trained_gbc.predict_proba(matrix_input)
     preds = trained_gbc.predict(matrix_input)
-    print("{:^80}".format("The variety of the predictions (classes, count)"))
+    print("\n{:^80}".format("The variety of the predictions (classes, count)"))
+
     list_sh = [(x, list(preds).count(x)) for x in set(list(preds))]
-    print("{:^80}".format(str(list_sh)))
+    print("{:^80}\n".format(str(list_sh)))
+
     return preds_gbc
 
 
-def CreationListDictArt(rep_data):
+def CreationDDArt(rep_data):
     """
-    Used for method files.
 
     Parameters
     ----------
-    rep_data : str
+    rep_data: str
         The folder with the articles input
 
     Returns
     -------
-    dict_arts_input : dict
+    dict_arts_input: dict
         A dictionary of the form {ida: dicoa, ...}
+
     """
     dict_arts_input = {}
-    for file_path in Path(rep_data).glob('./**/*'):
-        if file_path.suffix == '.xml':
-            try:
-                dict_art = propositions.ExtractDicoArtInput(file_path)
-                dict_arts_input[dict_art['melodyId']] = dict_art
-            except Exception as e:
-                print(f"An error with an article input: {e}")
+    rep_articles = rep_data + '/articles'
+    print(f"We search the articles in the repertory: {rep_articles}")
+
+    for file_path in Path(rep_articles).glob('*.xml'):
+        try:
+            dict_art = propositions.ExtractDicoArtInput(file_path)
+            dict_arts_input[dict_art['melodyId']] = dict_art
+        except Exception as e:
+            str_prt = (f"An error with an article input: {e}.\n"
+                       f"The file_path: {file_path}")
+            print(str_prt)
+
     return dict_arts_input
 
 
 def GenerationAllNTupleFromFiles(dict_arts_input, nb_arts):
     """
-    Used for method files.
-    I should add the score.
+
+    Parameters
+    ----------
+    dict_arts_input: dict
+        A dictionary with all the articles input we have.
+
+    nb_arts: int
+        The number of articles in the pages we want to create.
+
+    Raises
+    ------
+    MyException
+        Raises Exception if wrong number of articles.
+
+    Returns
+    -------
+    all_ntuple: list of tuples
+        List with all the possibilities of pages with nb_arts in it.
+        all_ntuple = [([dicta[x] for x in list_feat], ...), ...]
+
     """
+
     list_feat = ['aireTot', 'nbPhoto', 'melodyId']
     val_dict = dict_arts_input.values()
-    select_arts = [[dicoa[x] for x in list_feat] for dicoa in val_dict]
+    select_arts = [[dicta[x] for x in list_feat] for dicta in val_dict]
+
     str_prt = 'The selection of arts [aireTot, nbPhoto, melodyId]'
     print(f"{str_prt:-^75}")
     for i, list_art in enumerate(select_arts):
         print("{:<15} {}".format(i + 1, list_art))
     print("{:-^75}".format("End of the selection of arts"))
+
     if nb_arts == 2:
         all_ntuple = [(x, y) for i, x in enumerate(select_arts)
                       for y in select_arts[i + 1:]]
+
     elif nb_arts == 3:
         all_ntuple = [(x, y, z) for i, x in enumerate(select_arts)
                       for j, y in enumerate(select_arts[i + 1:])
                       for z in select_arts[i + j + 2:]]
+
     elif nb_arts == 4:
         all_ntuple = [(a, b, c, d) for i, a in enumerate(select_arts)
                       for j, b in enumerate(select_arts[i + 1:])
                       for k, c in enumerate(select_arts[i + j + 2:])
                       for d in select_arts[i + j + k + 3:]]
+
     elif nb_arts == 5:
         all_ntuple = [(a, b, c, d, e) for i, a in enumerate(select_arts)
                       for j, b in enumerate(select_arts[i + 1:])
                       for k, c in enumerate(select_arts[i + j + 2:])
                       for l, d in enumerate(select_arts[i + j + k + 3:])
                       for e in select_arts[i + j + k + l + 4:]]
+
     else:
-        str_exc = 'Wrong nb of arts: {}. Must be in [2, 5]'
-        raise MyException(str_exc.format(nb_arts))
+        str_exc = 'Wrong nb of arts: {}. Must be in [2, 5]'.format(nb_arts)
+        raise MyException(str_exc)
+
     print(f"The total nb of {nb_arts}-tuple generated: {len(all_ntuple)}.")
+
     return all_ntuple
 
 
 def GetSelectionOfArticlesFromFiles(all_ntuples):
     """
-    Used for method files.
 
     Parameters
     ----------
-    all_ntuples : TYPE
-        DESCRIPTION.
+    all_ntuples: list of tuples
+        List with all the possibilities of pages with nb_arts in it.
+        all_ntuples = [([dicta[x] for x in list_feat], ...), ...].
 
     Returns
     -------
-    final_obj : set
+    final_obj: set
         A set with all the tuples containing th ids of articles that together
         respect the constraints.
 
@@ -363,31 +573,65 @@ def GetSelectionOfArticlesFromFiles(all_ntuples):
     # CONSTRAINT SCORE ??? -> I should add that
     # Intersection of each result obtained
     final_obj = set(possib_imgs) & set(possib_area)
-    str_prt = "The number of ntuples that respect the constraints"
-    print("{:<55} {:>5}".format(str_prt, len(final_obj)))
+    str_prt = "The number of ntuples that respect the two constraints"
+    print("{}: {}.".format(str_prt, len(final_obj)))
     return final_obj
 
 
 def CreationListVectorsPageFromFiles(final_obj, artd_input, list_feat):
     """
-    Used in the method with files.
+    Uses the ids of pages in "final_obj" to create vectors article and to
+    concatenate them to build vect page.
+
+    Parameters
+    ----------
+    final_obj: set
+        set of tuples with the ids of page.
+
+    artd_input: dict
+        The dict with the articles INPUT.
+
+    list_feat: list of strings
+        The features used to create .
+
+    Returns
+    -------
+    list_vect_page: list of numpy array
+        List with the numpy_array_vect_page.
+
     """
     list_vect_page = []
     for triplet in final_obj:
         for i, ida in enumerate(triplet):
             artv = np.array([artd_input[ida][x] for x in list_feat], ndmin=2)
-            if i == 0: vect_page = artv
-            else: vect_page = np.concatenate((vect_page, artv), axis=1)
+            if i == 0:
+                vect_page = artv
+            else:
+                vect_page = np.concatenate((vect_page, artv), axis=1)
         list_vect_page.append(vect_page)
     return list_vect_page
 
 
-def SelectBestTriplet(all_triplets):
+def SelectBestTriplet(all_triplets, list_features):
     """
     Used in the method with files.
-
     Computation of the variance of a proposition and then the final score of a
     triplet.
+
+    Parameters
+    ----------
+    all_triplets: list of lists/tuple
+        all_triplets = [[(score, vect_page), (s, v), (s, v)], ...].
+
+    list_features: list of strings
+        The list with the features used to create the vectors page.
+
+    Returns
+    -------
+    best_triplet: tuple
+        best_triplet = (score_prop, triplet).
+        triplet = [(score, vect_page), (s, v), (s, v)]
+
     """
     vect_var = []
     for triplet in all_triplets:
@@ -397,8 +641,10 @@ def SelectBestTriplet(all_triplets):
         # Size of the vectors article: 15
         ind_aireTot = list_features.index('aireTot')
         size_vect_pg = mean_vect.shape[1]
+
         array_weights = triplet[0][1][0][range(ind_aireTot, size_vect_pg, 15)]
         weights_tmp = list(array_weights / sum(array_weights))
+
         weights = []
         for weight in weights_tmp:
             weights += [weight] * 15
@@ -409,46 +655,61 @@ def SelectBestTriplet(all_triplets):
             print("array_weights", array_weights)
             print("triplet: {}".format(triplet))
             break
+
         variance_triplet = 0
         for _, vect_page in triplet:
             diff_vect = np.array(weights) * (vect_page - mean_vect)
             variance_triplet += int(np.sqrt(np.dot(diff_vect, diff_vect.T)))
         vect_var.append(variance_triplet)
+
     # We standardize the vect_var
     std_var = np.std(vect_var)
     mean_var = np.mean(vect_var)
     stand_vect_var = (vect_var - mean_var) / std_var
+
     all_triplets_scores = []
     for triplet, var in zip(all_triplets, stand_vect_var):
         score_prop = sum((sc for sc, _ in triplet))
         all_triplets_scores.append((score_prop + var, triplet))
+
     # Ultimately, we take the triplet with the best score
     all_triplets_scores.sort(key=itemgetter(0), reverse=True)
     best_triplet = all_triplets_scores[0]
+
     str_triplet = "The best triplet has the score"
     print("{:<35} {:>35.2f}.".format(str_triplet, best_triplet[0]))
     print("{:-^80}".format("The score of each page"))
-    for sc, _ in best_triplet[1]: print("{:40.4f}".format(sc))
+    for sc, _ in best_triplet[1]:
+        print("{:40.4f}".format(sc))
     print("{:-^80}".format("The vectors page"))
-    for _, page in best_triplet[1]: print("{:^40}".format(str(page)))
+    for _, page in best_triplet[1]:
+        print("{:^40}".format(str(page)))
+
     return best_triplet
 
 
 def GenerationOfAllTriplets(preds_gbc, list_vect_page):
     """
-    Used in the method with files.
+    Selects the max of each vector of predicted probas. It corresponds to the
+    score of the page. It constructs an object with all the triplet of pages
+    with the score of each page.
 
     Parameters
     ----------
-    preds_gbc : TYPE
-        DESCRIPTION.
-    list_vect_page : TYPE
-        DESCRIPTION.
+    preds_gbc: numpy array
+        The matrix with the predicted probas for each vector page and each
+        layout.
+
+    list_vect_page: list of numpy array
+        The list with all the vectors page input.
 
     Returns
     -------
-    all_triplets : TYPE
-        DESCRIPTION.
+    all_triplets: list of lists
+        all_triplets = [[(score_page1, vect_page1),
+                         ...,
+                         (score_page3, vect_page3)], ...].
+        score_page is a float and vect_page a vector line of type numpy array.
 
     """
     pages_with_score = []
@@ -461,92 +722,109 @@ def GenerationOfAllTriplets(preds_gbc, list_vect_page):
     return all_triplets
 
 
-def FillShortVectorPage(final_obj, dict_arts):
+def FillShortVectorPage(final_obj, list_features, dict_arts):
     """
-    Used in method with files.
+    Computes a kind of standard vector page for each ntuple.
 
     Parameters
     ----------
-    final_obj : TYPE
-        DESCRIPTION.
-    dict_arts : TYPE
-        DESCRIPTION.
+    final_obj: set of tuples
+        The set with all the possible combinations of articles to create pages.
+        final_obj = {(id1, id2, id3), ...}.
+        Since I treat the pages with a given number of articles one by one,
+        the length of the tuples is the same.
+
+    list_features: list of strings
+        The list with the features used to train the model.
+
+    dict_arts: dict
+        The data dict with the characteristics of the articles.
 
     Returns
     -------
-    list_short_vect_page : TYPE
-        DESCRIPTION.
+    list_short_vect_page: list of numpy array
+        List with the sum vectors page associated to each possibility.
 
     """
     list_short_vect_page = []
     for ntuple in final_obj:
         # Line vector
-        short_vect_page = np.zeros((1, 15))
-        # nbSign
-        nbSign_page = sum((dict_arts[ida]['nbSign'] for ida in ntuple))
-        short_vect_page[0][0] = nbSign_page
-        # nbBlock
-        nbBlock_page = sum((dict_arts[ida]['nbBlock'] for ida in ntuple))
-        short_vect_page[0][1] = nbBlock_page
-        # abstract
-        abstract_page = sum((dict_arts[ida]['abstract'] for ida in ntuple))
-        short_vect_page[0][2] = abstract_page
-        # syn
-        syn_page = sum((dict_arts[ida]['syn'] for ida in ntuple))
-        short_vect_page[0][3] = syn_page
-        # exergue
-        exergue_page = sum((dict_arts[ida]['exergue'] for ida in ntuple))
-        short_vect_page[0][4] = exergue_page
-        # title - NOT INTERESTING
-        title_page = sum((dict_arts[ida]['title'] for ida in ntuple))
-        short_vect_page[0][5] = title_page
-        # secTitle
-        secTitle_page = sum((dict_arts[ida]['secTitle'] for ida in ntuple))
-        short_vect_page[0][6] = secTitle_page
-        # supTitle
-        supTitle_page = sum((dict_arts[ida]['supTitle'] for ida in ntuple))
-        short_vect_page[0][7] = supTitle_page
-        # subTitle
-        subTitle_page = sum((dict_arts[ida]['subTitle'] for ida in ntuple))
-        short_vect_page[0][8] = subTitle_page
-        # nbPhoto
-        nbPhoto_page = sum((dict_arts[ida]['nbPhoto'] for ida in ntuple))
-        short_vect_page[0][9] = nbPhoto_page
-        # aireImg
-        aireImg_page = sum((dict_arts[ida]['aireImg'] for ida in ntuple))
-        short_vect_page[0][10] = aireImg_page
-        # aireTot
-        aireTot_page = sum((dict_arts[ida]['aireTot'] for ida in ntuple))
-        short_vect_page[0][11] = aireTot_page
-        # petittitre
-        petittitre_page = sum((dict_arts[ida]['petittitre'] for ida in ntuple))
-        short_vect_page[0][12] = petittitre_page
-        # quest_rep
-        quest_rep_page = sum((dict_arts[ida]['quest_rep'] for ida in ntuple))
-        short_vect_page[0][13] = quest_rep_page
-        # intertitre
-        intertitre_page = sum((dict_arts[ida]['intertitre'] for ida in ntuple))
-        short_vect_page[0][14] = intertitre_page
+        short_pagev = []
+        # For each feature, we sum the values of all vects in the tuple.
+        for feat in list_features:
+            short_pagev.append(sum((dict_arts[ida][feat] for ida in ntuple)))
+        short_pagev = np.array(short_pagev, ndmin=2)
         # We add that vector to the list
-        list_short_vect_page.append(short_vect_page)
+        list_short_vect_page.append(short_pagev)
     return list_short_vect_page
+
+
+def ShowsBestTriplet(best_triplet):
+    """
+    Just shows nicely the best triplet.
+
+    Parameters
+    ----------
+    best_triplet: tuple
+        best_triplet = (score_prop,
+                        [(sc1, label1, vect1), ..., (sc3, label3, vect3)]).
+
+    Returns
+    -------
+    None.
+
+    """
+    str_prt = "The best triplet has the score"
+    print("{:<30} {:>15.2f}.".format(str_prt, best_triplet[0]))
+    print("{:-^80}".format("The score of each page"))
+    for sc, _, _ in best_triplet[1]: print("{:40.4f}".format(sc))
+    print("{:-^80}".format("The vectors page"))
+    for _, _, page in best_triplet[1]:
+        x0, x1, x14, x15 = page[0][0], page[0][1], page[0][-2], page[0][-1]
+    print(f"{x0:>15} {x1:6} ... {x14:6} {x15:6}")
 
 
 def SelectBestTripletAllNumbers(all_triplets, global_mean_vect, global_vect_std):
     """
     Computation of the variance of a proposition and then the final score of a
     triplet.
+    Addition of the global score of the proposition to the triplet.
+
+    Parameters
+    ----------
+    all_triplets: list of lists of tuples
+        all_triplets = [[(score_page1, label_pred1, short_vect_pg1),
+                         ...,
+                         (score_page3, label_pred3, short_vect_pg3)], ...].
+
+    global_mean_vect: numpy array
+        Vector of the same mength as the short_vect_page with the means.
+
+    global_vect_std: numpy array
+        Vector of the same mength as the short_vect_page with the stds.
+
+    Raises
+    ------
+    Exception
+        If there is an issue while computing the variance.
+
+    Returns
+    -------
+    all_triplets_scores: list of tuples.
+        all_triplets_scores = [(score_prop, triplet), ...] with
+        triplet = [(sc1, label1, vect1), ..., (sc3, label3, vect3)]
+
     """
     vect_var = []
     for triplet in all_triplets:
         list_vectors = [vect_pg for _, _, vect_pg in triplet]
         mean_local_vect = np.mean(list_vectors, axis=0)
-        norm_mean_local_vect = (mean_local_vect - global_mean_vect) / global_vect_std
+        norm_mean_local_vect = (mean_local_vect - global_mean_vect)/global_vect_std
         variance_triplet = 0
         for _, _, vect_page in triplet:
-            norm_vect = (vect_page - global_mean_vect) / global_vect_std
+            norm_vect = (vect_page - global_mean_vect)/global_vect_std
             try:
-                diff_eucl = np.sqrt((norm_vect - norm_mean_local_vect) ** 2)
+                diff_eucl = np.sqrt((norm_vect - norm_mean_local_vect)**2)
                 variance_triplet += np.sum(diff_eucl)
             except Exception as e:
                 args_n = ["norm_mean_local_vect", norm_mean_local_vect]
@@ -560,26 +838,20 @@ def SelectBestTripletAllNumbers(all_triplets, global_mean_vect, global_vect_std)
         vect_var.append(variance_triplet)
     # Here, I need to standardize the variance
     mean_var, std_var = np.mean(vect_var, axis=0), np.std(vect_var, axis=0)
-    print("{:<40} {:>30.2f}".format("The mean var", mean_var))
-    print("{:<40} {:>30.2f}".format("The std of the var", std_var))
-    if np.isclose(std_var, 0): std_var = 1
-    norm_vect_var = (vect_var - mean_var) / std_var
+    print("{:<30} {:>15.2f}.".format("The mean var", mean_var))
+    print("{:<30} {:>15.2f}.".format("The std of the var", std_var))
+    if np.isclose(std_var, 0):
+        std_var = 1
+    norm_vect_var = (vect_var - mean_var)/std_var
     all_triplets_scores = []
     for triplet, var in zip(all_triplets, norm_vect_var):
         score_prop = sum((sc for sc, _, _ in triplet))
         # We ponderate the variance by 0.5
-        all_triplets_scores.append((score_prop + 0.5 * var, triplet))
+        all_triplets_scores.append((score_prop + 0.5*var, triplet))
     # Ultimately, we take the triplet with the best score
     all_triplets_scores.sort(key=itemgetter(0), reverse=True)
     best_triplet = all_triplets_scores[0]
-    str_prt = "The best triplet has the score"
-    print("{:<50} {:>20.2f}.".format(str_prt, best_triplet[0]))
-    print("{:-^80}".format("The score of each page"))
-    for sc, _, _ in best_triplet[1]: print("{:40.4f}".format(sc))
-    print("{:-^80}".format("The vectors page"))
-    for _, _, page in best_triplet[1]:
-        x0, x1, x14, x15 = page[0][0], page[0][1], page[0][-2], page[0][-1]
-        print(f"{x0:>15} {x1:6} ... {x14:6} {x15:6}")
+    ShowsBestTriplet(best_triplet)
     return all_triplets_scores
 
 
@@ -587,14 +859,31 @@ def GetMeanStdFromList(big_list_sc_label_vectsh):
     """
     Returns the mean and std vect of a list of vectors with dim = 2.
     Here, it is numpy vectors of dim (1, 15).
+
+    Parameters
+    ----------
+    big_list_sc_label_vectsh: list of tuples
+        big_list_sc_label_vectsh = [(score, label, vectsh), ...].
+
+    Returns
+    -------
+    global_mean_vect: numpy array
+        Vector line with the means (dim=2).
+
+    global_vect_std: numpy array
+        Vector line with the stds (dim=2).
+
     """
     # Creation of a big matrix in order to compute the global mean and std
     for i, tuple_page in enumerate(big_list_sc_label_vectsh):
-        if i == 0: full_matrix = tuple_page[-1]
-        else: full_matrix = np.concatenate((full_matrix, tuple_page[-1]))
+        if i == 0:
+            full_matrix = tuple_page[-1]
+        else:
+            full_matrix = np.concatenate((full_matrix, tuple_page[-1]))
     global_vect_std = np.std(full_matrix, axis=0)
     for i in range(len(global_vect_std)):
-        if np.isclose(global_vect_std[i], 0): global_vect_std[i] = 1
+        if np.isclose(global_vect_std[i], 0):
+            global_vect_std[i] = 1
     global_mean_vect = np.mean(full_matrix, axis=0)
     return global_mean_vect, global_vect_std
 
@@ -604,55 +893,67 @@ def ProposalsWithoutGivenLayout(file_in,
                                 dico_bdd,
                                 dict_arts,
                                 list_mdp_data,
-                                dict_gbc):
+                                dict_gbc,
+                                list_features):
     """
     Parameters
     ----------
-    file_in : str
+    file_in: str
         Path to the folder with the xml files with the articles input.
-    file_out : str
+
+    file_out: str
         Path to a file that will contain the results of this function.
-    dico_bdd : dictionary
+
+    dico_bdd: dictionary
         The keys are the ids of the pages and the value a dictionary with all
         the elements of the articles of that page.
-    dict_arts : dictionary
+
+    dict_arts: dictionary
         {id_article: dict_art}.
-    list_mdp_data : list
+
+    list_mdp_data: list
         [(nb_pages, array_mdp, list_ids), ...]
-    dict_gbc : dictionary of gradient boosting classifier
+
+    dict_gbc: dictionary of gradient boosting classifier
         {2: gbc2, 3: gbc3, 4:gbc4}
+
+    list_features: list of strings
+        The list with the features used to form the vectors and train the
+        models.
 
     Returns
     -------
-    all_triplets_scores : list
+    all_triplets_scores: list
         [(score_triplet, triplet)] with
         triplet = [(sc_page, label_page, array_page), (), ()]
 
     """
     start_time = time.time()
-    dict_arts_input = CreationListDictArt(file_in)
-    print("Duration loading input: {:*^12.2f}".format(time.time() - start_time))
-    # Ok, now I should convert each page of the objects final_object into a vector
-    # page of size 15 with the following features
-    list_features = ['nbSign', 'nbBlock', 'abstract', 'syn']
-    list_features += ['exergue', 'title', 'secTitle', 'supTitle']
-    list_features += ['subTitle', 'nbPhoto', 'aireImg', 'aireTot']
-    list_features += ['petittitre', 'quest_rep', 'intertitre']
+    dict_arts_input = CreationDDArt(file_in)
+    dur = time.time() - start_time
+    print("Duration loading input: {:*^12.2f} sec.".format(dur))
+
     big_list_sc_label_vectsh = []
     list_vectsh_ids = []
     # A dictionary of dictionary
     dd_labels = {}
     for nb_arts in range(2, 5):
         t1 = time.time()
-        print("{:-^80}".format("PAGES WITH {} ARTS".format(nb_arts)))
+        print("\n{:-^80}\n".format("PAGES WITH {} ARTS".format(nb_arts)))
+        print(f"We test wether we can build pages with {nb_arts} articles.\n")
         # The list all_ntuples corresponds to all nb_arts-tuple possible
         all_ntuples = GenerationAllNTupleFromFiles(dict_arts_input, nb_arts)
+
         # The set set_ids_page is made of list of ids that respect the basic
         # constraints of a page
         set_ids_page = GetSelectionOfArticlesFromFiles(all_ntuples)
+        if len(set_ids_page) == 0:
+            print("As there are no possibilities, we go to the next number.")
+            continue
+
         # All the short vectors page. For now it is vectors of size 15 which are
         # the sum of all vectors articles in the page
-        list_short_vect_page = FillShortVectorPage(set_ids_page, dict_arts_input)
+        list_short_vect_page = FillShortVectorPage(set_ids_page, list_features, dict_arts_input)
         # We add the couple (sh_vect, ids) to all_list_couples_sh_vect_ids
         # This will be used to find back the ids of the articles which form the
         # page.
@@ -670,7 +971,7 @@ def ProposalsWithoutGivenLayout(file_in,
         preds_gbc = PredsModel(X, Y, list_long_vect_page, dict_gbc[nb_arts])
         d_mod = time.time() - t_model
         str_prt = f"Duration model {nb_arts} articles"
-        print(f"{str_prt:<35} {d_mod:*^12.2f} sec.")
+        print(f"{str_prt} {d_mod:*^12.2f} sec.")
         dd_labels[nb_arts] = dict_labels
         # I add the score given by preds_gbc to the short vect_page and the
         # index of the max because it is the label predicted.
@@ -681,8 +982,9 @@ def ProposalsWithoutGivenLayout(file_in,
             list_score_label_vectsh.append((sc_page, label_pred, short_vect_pg))
         big_list_sc_label_vectsh += list_score_label_vectsh
         str_prt = "Total duration pages {} arts".format(nb_arts)
-        print("{:<35} {:*^12.2f} sec.".format(str_prt, time.time() - t1))
+        print("{} {:*^12.2f} sec.".format(str_prt, time.time() - t1))
         print("{:-^80}".format(""))
+
     t2 = time.time()
     gbal_mean_vect, gbal_vect_std = GetMeanStdFromList(big_list_sc_label_vectsh)
     all_triplets = [[p1, p2, p3]
@@ -692,30 +994,30 @@ def ProposalsWithoutGivenLayout(file_in,
     args_all_nb = [all_triplets, gbal_mean_vect, gbal_vect_std]
     all_triplets_scores = SelectBestTripletAllNumbers(*args_all_nb)
     str_prt = "Duration computation scores triplet"
-    print("{:<50} {:*^12.2f} sec.".format(str_prt, time.time() - t2))
-    # It remains to create the xml output
-    # Since I have no id of modules, I can create for now false ids
-    # But I think this is useless
+    print("{} {:*^12.2f} sec.".format(str_prt, time.time() - t2))
+
     return all_triplets_scores, dd_labels, dict_arts_input, list_vectsh_ids
 
 
 def ShowResultsProWGLay(all_triplets_scores, dd_labels, list_vectsh_ids):
     """
-    Used in the method with files.
+    Returns the ids of the best pages.
 
     Parameters
     ----------
-    all_triplets_scores : list of tuples
+    all_triplets_scores: list of tuples
         [(score_triplet, triplet=[(sc_page, label_page, array_page), (), ()])].
-    dd_labels : dictionary of dictionaries
+
+    dd_labels: dictionary of dictionaries
         {nb_arts_pg: {0: array_mdp, ...}, ...}.
-    list_vectsh_ids : TYPE
-        DESCRIPTION.
+
+    list_vectsh_ids: list
+        list_vectsh_ids = [(vectsh, tuple_ids_articles_page), ...].
 
     Returns
     -------
-    list_ids_bestpage : list of tuples
-        [(array_layout, ids_art), ...].
+    list_ids_bestpage: list of tuples
+        list_ids_bestpage = [(array_layout, ids_art), ...].
 
     """
     list_ids_found = []
@@ -744,7 +1046,6 @@ def FindLocationArticleInLayout(dico_bdd,
                                 list_features,
                                 dicta_input):
     """
-    Used in the method with files.
 
     This function is used once we have the association layout/ids of articles.
     It finds the best location of the articles in the different modules of the
@@ -752,19 +1053,25 @@ def FindLocationArticleInLayout(dico_bdd,
 
     Parameters
     ----------
-    dico_bdd : dictionary
-        DESCRIPTION.
-    list_mdp_data : list
-        DESCRIPTION.
-    list_ids_bestpage : list
+    dico_bdd: dictionary
+        The data dictionary with the infos about the pages.
+
+    list_mdp_data: list
+        The data with the the layouts.
+        list_mdp_data = [(nb, array, list_ids), ...]
+
+
+    list_ids_bestpage: list
         List of the form [(array_mdp, (id_art1, id_art2, ...)), ...].
         It contains three elements, it is the best triplet of pages.
-    list_features : list
+
+    list_features: list of strings
         The list of features used for the model that predict the best location
         of an article in the page.
+
     Returns
     -------
-    list_xmlout : list
+    list_xmlout: list
         List of dictionaries of the form {(x, y, w, h): id_art, ...}.
         Each dictionary corresponds to a page result.
     """
@@ -834,8 +1141,6 @@ def FindLocationArticleInLayout(dico_bdd,
 
 def CreateXmlOutNoLayout(list_xmlout, file_out):
     """
-    Used in the method with files.
-
     The function creates an xml of the form:
     <PagesLayout>
         <PageLayout>
@@ -847,18 +1152,18 @@ def CreateXmlOutNoLayout(list_xmlout, file_out):
 
     Parameters
     ----------
-    list_xmlout : list of dictionaries
+    list_xmlou: list of dictionaries
         [
         {(x, y, w, h): (id_art_1, ...), ..., idLayout: id or "None"},
         {...},
          ...
          ].
-    file_out : str
+    file_out: str
         path/to/file/out.xml.
 
     Returns
     -------
-        bool
+    bool
     """
     PagesLayout = ET.Element("PagesLayout")
     for i, dico_page_result in enumerate(list_xmlout):
@@ -883,30 +1188,41 @@ def FinalResultsMethodNoLayout(file_in,
                                dict_arts,
                                list_mdp_data,
                                dict_gbc,
-                               dict_layouts):
+                               dict_layouts,
+                               list_features):
     """
 
     Parameters
     ----------
-    file_in : str
+    file_in: str
         The folder with one xml file for each articles.
-    file_out : str
+
+    file_out: str
         The path of a xml file that will be created by the app.
-    dico_bdd : dictionary
+
+    dico_bdd: dictionary
         The dictionary with the pages already published.
-    dict_arts : dictionary
+
+    dict_arts: dictionary
         The dictionary of the form {id_art: dico_art, ...}.
-    list_mdp_data : list
+
+    list_mdp_data: list
         A list of tuple [(nb_arts, array_mdp, list_ids), ...].
-    dict_gbc : dictionary
+
+    dict_gbc: dictionary
         Dictionary with the gradient boosting classifier of the form
         {2: GBC2, 3: GBC3, ...}
-    dict_layouts : dictionary
+
+    dict_layouts: dictionary
         A dictionary of the form:
             {id_layout: {'nameTemplate': str,
                          'cartons': list,
                          'id_pages': list,
                          'array': np.array}, ...}
+
+    list_features: list of strings
+        The list with the features used to train the model and predict the
+        layouts.
 
     Returns
     -------
@@ -916,18 +1232,20 @@ def FinalResultsMethodNoLayout(file_in,
     """
     start_time = time.time()
     args = [file_in, file_out, dico_bdd, dict_arts, list_mdp_data, dict_gbc]
-    res_proposals = ProposalsWithoutGivenLayout(*args)
+    res_proposals = ProposalsWithoutGivenLayout(*args, list_features)
     triplets_scores, dd_labels, dicta_input, list_vectsh_ids = res_proposals
+
     # Shows the results in the prompt and isolates the final ids of articles
     args = [triplets_scores, dd_labels, list_vectsh_ids]
     list_ids_bestpage = ShowResultsProWGLay(*args)
+
     # Extracts the infos about layout to build the xml output
     t_location = time.time()
     args_fd = [dico_bdd, list_mdp_data, list_ids_bestpage, list_features]
     list_xmlout = FindLocationArticleInLayout(*args_fd, dicta_input)
-    print(f"The list_xmlout: {list_xmlout}")
     d_location = time.time() - t_location
     print(f"Duration find location articles: {d_location:*^12.2f} sec.")
+
     # HERE I SHOULD TRY TO FIND CORRESPONDANCES WITH THE TRUE LAYOUTS
     # IF WE FIND A MATCH, WE ADD THE MELODYID IN <PageLayout MelodyId=...>
     for dict_page_result in list_xmlout:
@@ -946,22 +1264,16 @@ def FinalResultsMethodNoLayout(file_in,
                     break
         if match is False:
             dict_page_result['idLayout'] = "None"
-    print(f"The list_xmlout after addition of idLayout: {list_xmlout}")
+
+    print(f"\nThe list_xmlout after addition of idLayout:\n")
+    for dict_lay in list_xmlout:
+        for key, val in dict_lay.items():
+            print(f"{key}: {val}")
+        print("\n")
+
     # Creates the xml output in the repository file_out
     CreateXmlOutNoLayout(list_xmlout, file_out)
     tot_dur = time.time() - start_time
     print("{:-^80}".format("TOTAL DURATION - {:.2f} sec.".format(tot_dur)))
+
     return "Xml file with the results created"
-
-
-#%%
-
-list_features = ['nbSign', 'nbBlock', 'abstract', 'syn']
-list_features += ['exergue', 'title', 'secTitle', 'supTitle']
-list_features += ['subTitle', 'nbPhoto', 'aireImg', 'aireTot']
-list_features += ['petittitre', 'quest_rep', 'intertitre']
-path_mep = '/Users/baptistehessel/Documents/DAJ/MEP/'
-file_in = path_mep + 'ArticlesOptions/'
-file_out = path_mep + 'montageIA/out/outNoLayout.xml'
-# args = [file_in, file_out, dico_bdd, dict_arts, list_mdp_data, dict_gbc]
-# FinalResultsMethodNoLayout(*args)

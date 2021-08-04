@@ -146,10 +146,10 @@ if dict_model[2] is True:
     if args.save_model:
         if args.grid_search:
             gbc2 = GradientBoostingClassifier(**clf.best_params_).fit(X, Y)
-            with open(path_cm + 'gbc2', 'wb') as f: pickle.dump(gbc2, f)
+            with open(path_customer + 'gbc2', 'wb') as f: pickle.dump(gbc2, f)
         else:
             gbc2 = GradientBoostingClassifier().fit(X, Y)
-            with open(path_cm + 'gbc2', 'wb') as f: pickle.dump(gbc2, f)
+            with open(path_customer + 'gbc2', 'wb') as f: pickle.dump(gbc2, f)
 
 
 ##############################################################################

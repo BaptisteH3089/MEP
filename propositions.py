@@ -22,18 +22,84 @@ class MyException(Exception):
 
 def CleanBal(txt):
     """
-    Enlève les balises xml <...> et leur contenu.
+    Removes the xml tags <...> and their content.
+
+    Parameters
+    ----------
+    txt : str
+        The text input.
+
+    Returns
+    -------
+    str
+        The text input without <tag>.
+
     """
     return re.sub(re.compile('<.*?>'), '', txt)
 
 
+def OpeningArticle(file_path_article):
+    """
+    Opening of an article input and returns the tag article and the content.
+
+    Parameters
+    ----------
+    file_path_article: str
+        The absolute path to the file with an article.
+
+    Raises
+    ------
+    MyException
+        If there is an issue with the content.
+
+    Returns
+    -------
+    art_soup: BeautifulSoup object
+        All what's in the tag <article>.
+
+    soup: BeautifulSoup object
+        All the content of the file parsed with beautiful soup.
+
+    """
+    with open(file_path_article, "r", encoding='utf-8') as file:
+        try:
+            content = file.readlines()
+        except Exception as e:
+            str_exc = (f"Error in propositions:OpeningArticle \n"
+                       f"An error while opening the file: {e} \n"
+                       f"The path of the file: {str(file_path_article)}.")
+            raise MyException(str_exc)
+
+    content = "".join(content)
+    soup = BeautifulSoup(content, "lxml")
+    art_soup = soup.find('article')
+
+    if art_soup is None:
+        print("art_soup is None")
+        str_exc = (f"propositions:ExtractDicoArtInput: No art. in that file."
+                   f"file_path:\n{file_path_article}")
+        raise MyException(str_exc)
+
+    return art_soup, soup
+
+
 def ExtractDicoArtInput(file_path):
     """
-    Anciennement : CreateListMDPInput(file_path) qui renvoyait dico identique.
-    'file_path' correspond au chemin absolu d'un fichier xml qui va être parsé
-    par cette fonction.
-    PLus de clef 'nbCol'.
-    Renvoie un dico avec comme clefs les quelques features voulues. Exemple :
+    Parsing of a xml file with an article.
+
+    Parameters
+    ----------
+    file_path: str
+        The absolute path to an xml file article.
+
+    Raises
+    ------
+    MyException
+        If the file doesn't have a tag 'article'.
+
+    Returns
+    -------
+    dico_vector_input: dict
         dico_vector_input = {'aireImg': ...,
                              'melodyId': ...,
                              'nbPhoto': ...,
@@ -45,22 +111,17 @@ def ExtractDicoArtInput(file_path):
                              'title': ...,
                              'abstract': ...,
                              'exergue': ...,
-                             'syn': ...}
+                             'syn': ...,
+                             'label': ...,
+                             'blocs': ...,
+                             'aireTotImgs': ...,
+                             'dimImgs': ...,
+                             'nbEmpImg': ...,
+                             'aireTot': ...}.
     """
-    with open(file_path, "r", encoding='utf-8') as file:
-        try:
-            content = file.readlines()
-        except Exception as e:
-            str_exc = (f"Error in propositions:ExtractDicoArtInput \n"
-                       f"An error while opening the file: {e} \n"
-                       f"The path of the file: {str(file_path)}.")
-            raise MyException(str_exc)
-        content = "".join(content)
-        soup = BeautifulSoup(content, "lxml")
-    art_soup = soup.find('article')
-    if art_soup is None:
-        print(f"The file of the path with xml without article: {file_path}")
-        raise MyException("No article in that file: {file_path}")
+
+    art_soup, soup = OpeningArticle(file_path)
+
     dico_vector_input = {}
     img_soup = art_soup.find('photos')
     aire_img = 0
@@ -70,25 +131,42 @@ def ExtractDicoArtInput(file_path):
         for width_bal, height_bal in zip(widths, heights):
             width, height = width_bal.text, height_bal.text
             try:
-                aire_img += int(width) * int(height) / 10000
+                aire_img += int(width)*int(height) / 10000
             except Exception as e:
                 print("Error with width and height: {}".format(e))
                 print("width", width, "type(width)", type(width))
                 print("height", height, "type(height)", type(height))
-    try: sup_title = CleanBal(art_soup.find('suptitle').text)
-    except: sup_title = ""
-    try: sec_title = CleanBal(art_soup.find('secondarytitle').text)
-    except: sec_title = ""
-    try: sub_title = CleanBal(art_soup.find('subtitle').text)
-    except: sub_title = ""
-    try: title = CleanBal(art_soup.find('title').text)
-    except: title = ""
-    try: abstract = CleanBal(art_soup.find('abstract').text)
-    except: abstract = ""
-    try: syn = CleanBal(art_soup.find('synopsis').text)
-    except: syn = ""
-    try: exergue = CleanBal(art_soup.find('exergue').text)
-    except: exergue = ""
+
+    try:
+        sup_title = CleanBal(art_soup.find('suptitle').text)
+    except:
+        sup_title = ""
+    try:
+        sec_title = CleanBal(art_soup.find('secondarytitle').text)
+    except:
+        sec_title = ""
+    try:
+        sub_title = CleanBal(art_soup.find('subtitle').text)
+    except:
+        sub_title = ""
+    try:
+        title = CleanBal(art_soup.find('title').text)
+    except:
+        title = ""
+    try:
+        abstract = CleanBal(art_soup.find('abstract').text)
+    except:
+        abstract = ""
+    try:
+        syn = CleanBal(art_soup.find('synopsis').text)
+    except:
+        syn = ""
+    try:
+        exergue = CleanBal(art_soup.find('exergue').text)
+    except:
+        exergue = ""
+
+    # We use indicators functions.
     sup_title_indicatrice = 1 if len(sup_title) > 0 else 0
     sec_title_indicatrice = 1 if len(sec_title) > 0 else 0
     sub_title_indicatrice = 1 if len(sub_title) > 0 else 0
@@ -96,34 +174,38 @@ def ExtractDicoArtInput(file_path):
     abstract_indicatrice = 1 if len(abstract) > 0 else 0
     syn_indicatrice = 1 if len(syn) > 0 else 0
     exergue_indicatrice = 1 if len(exergue) > 0 else 0
-    # Données du carton. Plus fiable normalement.
+
+    # Data of the module.
     options_soup_txt = soup.find('options').text
     options_soup = BeautifulSoup(options_soup_txt, "lxml")
     liste_blocks = []
-    aire_imgs, dim_imgs = [], []
+    aire_imgs = []
+    dim_imgs = []
     aireTot = 0
-    petittitre_indicator, quest_rep_indicator, intertitre_indicator = 0, 0, 0
+    petittitre_indicator = 0
+    quest_rep_indicator = 0
+    intertitre_indicator = 0
+
     for bloc_soup in options_soup.find_all('bloc'):
         dico_block = {}
-        try:
-            kind = bloc_soup.get('kind')
-            dico_block['kind'] = kind
-        except:
-            pass
         dico_block['label'] = bloc_soup.get('label')
-        # Il faut créer des variables pour avoir la présence du Titre,
-        # intertitre, question, réponse, exergue
         str_height = bloc_soup.get('originalheight')
         str_width = bloc_soup.get('originalwidth')
         str_left = bloc_soup.get('originalleft')
         str_top = bloc_soup.get('originaltop')
         dico_block['originalheight'] = int(float(str_height))
         dico_block['originalwidth'] = int(float(str_width))
-        try: dico_block['originalleft'] = int(float(str_left))
-        except: dico_block['originalleft'] = -1
-        try: dico_block['originaltop'] = int(float(str_top))
-        except: dico_block['originaltop'] = -1
+        try:
+            dico_block['originalleft'] = int(float(str_left))
+        except:
+            dico_block['originalleft'] = -1
+        try:
+            dico_block['originaltop'] = int(float(str_top))
+        except:
+            dico_block['originaltop'] = -1
+
         aireTot += dico_block['originalheight'] * dico_block['originalwidth']
+
         if 'PHOTO' in dico_block['label']:
             height_img = dico_block['originalheight']
             width_img = dico_block['originalwidth']
@@ -138,18 +220,17 @@ def ExtractDicoArtInput(file_path):
             quest_rep_indicator = 1
         elif 'REPONSE' in dico_block['label']:
             quest_rep_indicator = 1
+
         liste_blocks.append(dico_block)
+
+    dico_vector_input['aireImg'] = aire_img
+    dico_vector_input['melodyId'] = int(art_soup.find('id').text)
+    dico_vector_input['nbPhoto'] = len(aire_imgs)
     dico_vector_input['blocs'] = liste_blocks
     dico_vector_input['aireTotImgs'] = sum(aire_imgs)
     dico_vector_input['dimImgs'] = dim_imgs
     dico_vector_input['nbEmpImg'] = len(aire_imgs)
     dico_vector_input['aireTot'] = aireTot
-    # Aussi dans l'ancienne version
-    dico_vector_input['aireImg'] = aire_img
-    try: dico_vector_input['melodyId'] = int(art_soup.find('id').text)
-    except: dico_vector_input['melodyId'] = 8888
-    try: dico_vector_input['nbPhoto'] = len(aire_imgs)
-    except: dico_vector_input['nbPhoto'] = 0
     text_raw_soup = art_soup.find('text_raw')
     dico_vector_input['nbBlock'] = len(text_raw_soup.find_all('p'))
     dico_vector_input['nbSign'] = len(art_soup.find('text').text)
@@ -163,54 +244,82 @@ def ExtractDicoArtInput(file_path):
     dico_vector_input['petittitre'] = petittitre_indicator
     dico_vector_input['intertitre'] = intertitre_indicator
     dico_vector_input['quest_rep'] = quest_rep_indicator
+
     return dico_vector_input
 
 
-def ExtractMDP(file_path):
+def OpeningMDP(file_path_layout):
     """
-    Anciennement : CreateListMDPInput(file_path).
-    Extrait les cartons d'un MDP contenus dans un fichier.
-    Renvoie un dico de la forme :
-        dico_mdp = {id_mdp: {id_carton_1: {'nbCol': xxx,
-                                           'nbImg': xxx,
-                                           'listeAireImgs': [xxx, xxx, ...],
-                                           'height': xxx,
-                                           'width': xxx,
-                                           'x': xxx,
-                                           'y': xxx,
-                                           'aireTotImgs': xxx},
-                             id_carton_2: {...}, ...}}
+    Opening of the xml file with the info about the layout.
+
+    Parameters
+    ----------
+    file_path_layout : str
+        The absolute path to the file with the layout.
+
+    Raises
+    ------
+    MyException
+        If we can't open the file.
+
+    Returns
+    -------
+    soup : Beautifulsoup object
+        All the parsed content of the file.
+
     """
-    with open(file_path, "r", encoding='utf-8') as file:
+    with open(file_path_layout, "r", encoding='utf-8') as file:
         try:
             content = file.readlines()
         except Exception as e:
             str_exc = (f"Error in propositions:ExtractMDP \n"
                        f"An error while opening the file: {e} \n"
-                       f"The path of the file: {str(file_path)}.")
+                       f"The path of the file: {str(file_path_layout)}.")
             raise MyException(str_exc)
-        content = "".join(content)
+    content = "".join(content)
     soup = BeautifulSoup(content, "lxml")
+    return soup
+
+
+def ExtractMDP(file_path):
+    """
+    Extracts the info in the xml file with the layout and put the info in a
+    dict.
+
+    Parameters
+    ----------
+    file_path: str
+        The absolute path to the xml file.
+
+    Returns
+    -------
+    dico_mdp: dict
+        dico_mdp = {id_mdp: {id_carton_1: {'nbCol': ...,
+                                           'nbImg': ...,
+                                           'listeAireImgs': [...],
+                                           'height': ...,
+                                           'width': ...,
+                                           'x': ...,
+                                           'y': ...,
+                                           'aireTotImgs': ...},
+                             id_carton_2: {...}, ...}}.
+    """
+    soup = OpeningMDP(file_path)
     cartons_soup = soup.find_all('carton')
     page_template_soup = soup.find('pagetemplate')
     id_mdp = int(page_template_soup.find('id').text)
     dico_mdp = {id_mdp: {}}
+
     for carton_soup in cartons_soup:
         options_soup_txt = soup.find('options').text
         options_soup = BeautifulSoup(options_soup_txt, "lxml")
         liste_blocks = []
         aire_imgs, dim_imgs = [], []
         aire_tot = 0
+
         for bloc_soup in options_soup.find_all('bloc'):
             dico_block = {}
-            try:
-                kind = bloc_soup.get('kind')
-                dico_block['kind'] = kind
-            except:
-                pass
             dico_block['label'] = bloc_soup.get('label')
-            # Il faut créer des variables pour avoir la présence du Titre,
-            # intertitre, question, réponse, exergue
             str_height = bloc_soup.get('originalheight')
             str_width = bloc_soup.get('originalwidth')
             str_left = bloc_soup.get('originalleft')
@@ -229,12 +338,14 @@ def ExtractMDP(file_path):
                 aire_img = height_img * width_img
                 aire_imgs.append(aire_img)
             liste_blocks.append(dico_block)
+
         id_carton = carton_soup.find('id').text
         nb_col = carton_soup.find('nbcol')
         mm_height = carton_soup.find('mmheight')
         mm_width = carton_soup.find('mmwidth')
         x_precision = carton_soup.find('x_precision')
         y_precision = carton_soup.find('y_precision')
+
         dico_mdp[id_mdp][id_carton] = {}
         dico_mdp[id_mdp][id_carton]['blocs'] = liste_blocks
         dico_mdp[id_mdp][id_carton]['x'] = int(float(x_precision.text))
@@ -246,15 +357,28 @@ def ExtractMDP(file_path):
         dico_mdp[id_mdp][id_carton]['aireTotImgs'] = sum(aire_imgs)
         dico_mdp[id_mdp][id_carton]['listeAireImgs'] = aire_imgs
         dico_mdp[id_mdp][id_carton]['aireTot'] = aire_tot
+
     return dico_mdp
 
 
 def ExtractCatName(file_path):
     """
+    Returns the printCategory (rubric) associated to the files input.
 
-    Extrait le nom de la rubrique dans une liste.
-    Pour l'instant une seule rubrique.
-    Renvoie une string.
+    Parameters
+    ----------
+    file_path: str
+        The absolute path to the file with the rubric or printCategory.
+
+    Raises
+    ------
+    MyException
+        If there is an issue while opening the file.
+
+    Returns
+    -------
+    str
+        The printCategory.
 
     """
     with open(file_path, "r", encoding='utf-8') as file:
@@ -271,39 +395,76 @@ def ExtractCatName(file_path):
     return print_category_soup.find('name').text
 
 
-def GetXInput(liste_dico_vector_input, features):
+def GetXInput(liste_dico_vector_input, list_features):
     """
-    Crée une matrice avec comme lignes les vecteurs associés aux articles et
-    les colonnes correspondent aux variables dans features.
-    Renvoie aussi le dico {id_art: vect_art} pour chaque article INPUT.
-    big_x renvoyé : numpy array de dimensions (nb_arts_INPUT * nb_features)
+    Creates a matrix with the articles input. A line of the matrix corresponds
+    to an article and a column corresponds to one feature.
+
+    Parameters
+    ----------
+    liste_dico_vector_input: list of dicts
+        DESCRIPTION.
+
+    list_features: list of strings
+        The list with the features of each article.
+
+    Returns
+    -------
+    big_x: numpy array
+        Matrix with the articles input.
+        dim(big_x) = (nb_arts_INPUT, nb_features).
+
+    dico_id_artx: dict
+        Dict with the articles input.
+        dico_id_artx = {id_article: vect_article, ...}.
+
     """
+
     dico_id_artx = {}
     for i, d_vect_input in enumerate(liste_dico_vector_input):
-        args = [d_vect_input, features]
+        args = [d_vect_input, list_features]
         id_art, vect_art = methods.GetVectorArticleInput(*args)
         dico_id_artx[id_art] = vect_art
-        # Initialisation de la matrice big_x avec le 1er article
+        # Initialisation of the matrix big_x with the 1er article
         if i == 0:
             big_x = np.array(vect_art, ndmin=2)
-        # Ajout d'un vecteur article à la fin de big_x
+        # Addition vector article at the end of big_x
         else:
             x = np.array(vect_art, ndmin=2)
             big_x = np.concatenate((big_x, x))
     return big_x, dico_id_artx
 
 
-def TrouveMDPSim(liste_tuple_mdp, mdp_input):
+def TrouveMDPSim(list_mdp_data, mdp_input):
     """
-    Identification MDP similaire dans la liste l_model_new
-    liste_tuple_mdp : l_model_new avec la sélection sur nb d'articles
-    Renvoie la liste triée de tuples [(nbpages, mdp, ids), ...]
-    Si aucune correspondance trouvée, cette fonction raise une exception.
-    UPDATE 02/06 : Comme l'ordre est important on parcourt les tuples
+    Search for some similar layouts in the data.
+
+    Parameters
+    ----------
+    list_mdp_data: list of tuples
+        The data list of the form:
+            list_mdp_data = [(nb, array_layout, list_ids), ...].
+
+    mdp_input: numpy array
+        The layout input.
+
+    Raises
+    ------
+    MyException
+        If there in an issue with np.allclose().
+    MyException
+        If there is no correspondance.
+
+    Returns
+    -------
+    mdp_trouve: numpy array
+        The similar layout found in the data.
+
     """
+
     n = len(mdp_input)
     mdp_trouve = []
-    for nb_pages, mdp, liste_ids in liste_tuple_mdp:
+    for nb_pages, mdp, liste_ids in list_mdp_data:
         nb_correspondances = 0
         for i in range(n):
             for j in range(n):
@@ -312,9 +473,8 @@ def TrouveMDPSim(liste_tuple_mdp, mdp_input):
                         nb_correspondances += 1
                 except Exception as e:
                     str_exc = (f"An exception occurs with np.allclose: {e}\n"
-                               f"mdp: {mdp}\n"
-                               f"j: {j}, i: {i} \n"
-                               f"mdp_input: {mdp_input}")
+                               f"mdp: {mdp}.\nj: {j}, i: {i} \n"
+                               f"mdp_input:\n{mdp_input}")
                     raise MyException(str_exc)
         if nb_correspondances == n:
             mdp_trouve.append((nb_pages, mdp, liste_ids))
@@ -327,71 +487,142 @@ def TrouveMDPSim(liste_tuple_mdp, mdp_input):
 
 def ExtractionDataInput(rep_data):
     """
-    Extraction des données des xml INPUT.
-    Archive de la forme :
+    Extraction the data in the archive. The archive once dezipped must be of
+    the form:
         name_archive/articles
                     /pageTemplate
                     /printCategory
+
+
+    Parameters
+    ----------
+    rep_data: str
+        The absolute path to the archive.
+
+    Returns
+    -------
+    list_articles: list of dicts
+        The list with the dictionary associated to the articles.
+
+    dico_mdps: dict
+        Dictionary with the layout input (there should be only one).
+        dico_mdps = {id_layout: dict_layout, ...}
+
+    rubric_out: str
+        The rubric associated to the articles input.
+
     """
+
     list_articles = []
     # Extraction des articles
     rep_articles = rep_data + '/' + 'articles'
-    for file_path in Path(rep_articles).glob('./**/*'):
-        if 'printCategory' not in str(file_path):
-            if file_path.suffix == '.xml':
-                try:
-                    dict_vector_input = ExtractDicoArtInput(file_path)
-                    list_articles.append(dict_vector_input)
-                except Exception as e:
-                    str_exc = (f"Error in propositions:ExtractionDataInput \n"
-                               f"{e}.\n The path of the file: {file_path}.")
-                    print(str_exc)
+    print(f"For the articles, we search into: {rep_articles}")
+    for file_path in Path(rep_articles).glob('*.xml'):
+        try:
+            dict_vector_input = ExtractDicoArtInput(file_path)
+            list_articles.append(dict_vector_input)
+        except Exception as e:
+            str_exc = (f"Error in propositions:ExtractionDataInput \n"
+                       f"{e}.\n The path of the file: {file_path}.")
+            print(str_exc)
+
     # Extraction du MDP
     dico_mdps = {}
     rep_mdp = rep_data + '/' + 'pageTemplate'
-    for file_path in Path(rep_mdp).glob('./**/*'):
-        if file_path.suffix == '.xml':
-            dico_one_mdp = ExtractMDP(file_path)
-            id_mdp = list(dico_one_mdp.keys())[0]
-            # VOIR POUR AUTRE SOLUTION SI PLUSIEURS MDP
-            dico_mdps[id_mdp] = dico_one_mdp[id_mdp]
-    # Extraction de la/des rubrique(s)
+    print(f"For the templates, we search into: {rep_mdp}")
+    for file_path in Path(rep_mdp).glob('*.xml'):
+        dico_one_mdp = ExtractMDP(file_path)
+        id_mdp = list(dico_one_mdp.keys())[0]
+        dico_mdps[id_mdp] = dico_one_mdp[id_mdp]
+
+    # Extraction de la rubrique
     list_rub = []
     rep_rub = rep_data + '/' + 'printCategory'
-    for file_path in Path(rep_rub).glob('./**/*'):
-        if file_path.suffix == '.xml':
-            list_rub.append(ExtractCatName(file_path))
-    return list_articles, dico_mdps, list_rub
+    print(f"For the rubric, we search into: {rep_rub}")
+    for file_path in Path(rep_rub).glob('*.xml'):
+        list_rub.append(ExtractCatName(file_path))
+
+    # Verification of the rubric
+    if len(list_rub) > 1:
+        print(f"len(list_rub): {len(list_rub)}. There should be only one")
+        print(f"rubric. content: \n {list_rub}\n")
+        rubric_out = list_rub[0]
+        print(f"The rubric chosen: {rubric_out}")
+    elif len(list_rub) == 0:
+        rubric_out = "None"
+    else:
+        rubric_out = list_rub[0]
+
+    return list_articles, dico_mdps, rubric_out
 
 
-def SelectionModelesPages(l_model, nb_art, nb_min_pages):
+def SelectionModelesPages(list_mdp, nb_art, nb_min_pages):
     """
-    Sélectionne parmi tous les MDP dans la BDD, ceux qui ont "nb_art" articles
-    et qui sont utilisés pour au moins "nb_min_pages" pages.
+    Selects the layouts with "nb_arts" modules in our data and that are used
+    by at least "nb_min_pages" pages.
+
+    Parameters
+    ----------
+    list_mdp: list of tuples
+        The usual list with the layouts.
+        list_mdp = [(nb, array_layout, list_ids), ...]
+
+    nb_art: int
+        The number of modules in the layouts selected.
+
+    nb_min_pages: int
+        The min number of pages using each layout.
+
+    Returns
+    -------
+    list
+        The tuples_layout with "nb_arts" modules and used by at least
+        "nb_min_pages" pages
+        [(nb_pages, array_layout, list_ids), ...]
+
     """
     f = lambda x: (x[1].shape[0] == nb_art) & (x[0] >= nb_min_pages)
-    return list(filter(f, l_model))
+    return list(filter(f, list_mdp))
 
 
 def CreateXmlPageProposals(liste_page_created, file_out):
     """
-    Liste_page_created est de la forme :
+    Liste_page_created is of the form:
         [{MelodyId: X, printCategoryName: X, emp1: X, emp2: X, emp3: X}, ...]
-    Crée un fichier xml à l'emplacement "file_out" avec les propositions de
-    page. L'architecture du xml est :
+
+    Creates a xml file in the repertory given by "file_out" with the proposals
+    of pages. The architecture of the xml is:
         <PagesLayout>
             <PageLayout MelodyId="..." printCategoryName="...">
-                <article x="..." y="..." MelodyId="..." />
-                <article x="..." y="..." MelodyId="..." />
+                <article x="..." y="..." MelodyId="..." CartonId="..."/>
+                <article x="..." y="..." MelodyId="..." CartonId="..."/>
             </PageLayout>
                 ...
             <PageLayout MelodyId="..." printCategoryName="...">
-                <article x="..." y="..." MelodyId="..." />
+                <article x="..." y="..." MelodyId="..." CartonId="..."/>
                 ...
             </PageLayout>
             ...
         </PagesLayout>
-    # UPDATE 01/06/21, il faut ajouter l'élément CartonId dans article'
+
+    Parameters
+    ----------
+    liste_page_created: list of dicts
+        liste_page_created = [{MelodyId: X,
+                               printCategoryName: X,
+                               emp1: X,
+                               emp2: X,
+                               emp3: X,
+                               ...}, ...]
+
+    file_out: str
+        The repertory where we write the file.
+
+    Returns
+    -------
+    bool
+        Just True if everything went well.
+
     """
     PagesLayout = ET.Element("PagesLayout")
     for i, created_page in enumerate(liste_page_created):
@@ -405,23 +636,35 @@ def CreateXmlPageProposals(liste_page_created, file_out):
                 Article.set("y", str(key[1]))
                 Article.set("MelodyId", str(value[0]))
                 Article.set("CartonId", str(value[1]))
+
     tree = ET.ElementTree(PagesLayout)
     tree.write(file_out, encoding="UTF-8")
+
     return True
 
 
 def ProposalsWithScore(dict_mlv_filtered):
     """
-    dict_mlv_filtered = {clef_1: [(score, id_art), ...],
-                         clef_2: ...,
-                         ...}
-    Création d'un dico avec id_art: score
-    On enlève le score du dico_filtered
-    On utilise la fonction pour faire le produit de listes
-    On calcule le score pour chaque ventilation
-    On renvoie les 3 ventilations avec les meilleurs scores.
-    Returns an object of the form:
-        liste_possib_score = [(score, (id_1, id_2, id_3), ...), ...]
+    Computes the score of each possibility. Returns the 3 pages with the best
+    score.
+
+    Parameters
+    ----------
+    dict_mlv_filtered : dict
+        dict_mlv_filtered = {clef_1: [(score, id_art), ...],
+                             clef_2: ...,
+                             ...}.
+
+    Raises
+    ------
+    MyException
+        if the type of dict_mlv_filtered isn't right.
+
+    Returns
+    -------
+    list of tuples
+        liste_possib_score = [(score, (id_1, id_2, id_3), ...), ...].
+
     """
     if type(dict_mlv_filtered) is not dict:
         str_exc = "The argument 'dict_mlv_filtered' of the function "
@@ -462,15 +705,27 @@ def ProposalsWithScore(dict_mlv_filtered):
 
 def CreateListeProposalsPage(dict_global_results, mdp_INPUT):
     """
-    Crée une liste de la forme
-    [
-    {'MelodyId': '25782', 'printCategoryName': 'INFOS',
-     ('15', '46'): 695558, ('15', '292'): 695641, ('204', '191'): 694396}, ...
-    ]
-    avec les pages proposées
-    UPDATE 01/06 ajout élément id_carton aux résultat
-    Renvoie objet de la forme [{'MelodyId':...,
-    ('15', '46'): (id_art, id_carton)}]
+    Prepares the results for the xml output.
+
+    Parameters
+    ----------
+    dict_global_results: dict of dicts
+        dict_global_results = {id_layout: {rubric: list_possib_score, ...},
+                               ...}
+        with list_possib_score = [(score, [ida, ida, ...]), ...]
+
+    mdp_INPUT: dict
+        mdp_INPUT = {id_layout: dict_layout, ...}.
+
+    Returns
+    -------
+    liste_page_created : list of dicts
+            [{'MelodyId': '25782',
+            'printCategoryName': 'INFOS',
+            ('15', '46'): (id_art, id_carton),
+            ('15', '292'): (id_art, id_carton),
+            ('204', '191'): (id_art, id_carton)}, ...].
+
     """
     liste_page_created = []
     for id_mdp, dict_poss_each_rub in dict_global_results.items():
@@ -491,13 +746,29 @@ def CreateListeProposalsPage(dict_global_results, mdp_INPUT):
 
 def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features):
     """
+    The filtering is made on the score and on the differences between articles
+    weighted by the areas of the articles.
 
-    ind_features = ['nbSign', 'aireTot', 'aireImg']
-    vents_uniq = [(88176, (32234, 28797)), ...]
-    Le tri se fait sur le score et les différences entre les articles
-    pondérées par les aires des emplcaments
-    Il faut renvoyer un objet du type :
-        [(score, (id1, id2)), (score, (id1, id2)), (score, (id1, id2))]
+    Parameters
+    ----------
+    vents_uniq: list of tuples
+        vents_uniq = [(88176, (32234, 28797)), ...].
+
+    dico_id_artv: dict
+        dico_id_artv = {id_article: vect_article, ...}.
+
+    ind_features: list of strings
+        ['nbSign', 'aireTot', 'aireImg'].
+
+    Raises
+    ------
+    MyException
+        If error with the weights.
+
+    Returns
+    -------
+    list of tuples
+        [(score, (id1, id2)), (score, (id1, id2)), (score, (id1, id2))].
 
     """
     # D'abord, on commence par extraire toutes les propositions avec 3
@@ -585,51 +856,128 @@ def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features):
     return best_prop[1]
 
 
-def ExtractAndComputeProposals(dico_bdd,
-                               liste_mdp_bdd,
-                               path_data_input,
-                               file_out,
-                               verbose=2):
+def ShowsXDictidartv(big_x, dico_id_artv, list_features):
     """
 
     Parameters
     ----------
-    dico_bdd : dictionary
-        DESCRIPTION.
-    liste_mdp_bdd : list of tuples
-        DESCRIPTION.
-    path_data_input : str
-        Corresponds to a directory with 2 or 3 folders which contain the xml
-        files with the articles, the rubric and the layout.
-    file_out : str
-        The absolute path of the file that will be created by this function
-        with the results obtained.
+    big_x: numpy array
+        The matrix with all articles input.
+
+    dico_id_artv: dict
+        dico_id_artv = {id_art: vect_art, ...}.
+
+    list_features: list of strings
+        The features used to create the vectors.
 
     Returns
     -------
-    str
-        Indicates that everything went well.
-
-    Steps of the function:
-        - Creates the lists of dictionaries with the articles and the layout.
-        - Determine the pages that can be made with these articles and that
-        layout.
-        - Create an xml file with the results. The output file associates ids
-        of articles with ids of modules.
+    None.
 
     """
-    # The list of features of the vectors article.
-    # The compulsory features are: aireImg and aireTot.
-    list_features = ['nbSign', 'nbBlock', 'abstract', 'syn']
-    list_features += ['exergue', 'title', 'secTitle', 'supTitle']
-    list_features += ['subTitle', 'nbPhoto', 'aireImg', 'aireTot']
-    # Indexes of nbSign, nbPhoto, aireImg for the function FiltreArticles.
-    list_to_index = ['nbSign', 'aireTot', 'aireImg']
-    ind_features = [list_features.index(x) for x in list_to_index]
-    print("The path_data_input: {}".format(path_data_input))
-    # On met les données extraites dans des listes de dico
-    list_arts_INPUT, mdp_INPUT, rub_INPUT = ExtractionDataInput(path_data_input)
-    # Affichage MDP input
+    print("{:-^75}".format("big_x and dico_id_artv"))
+    nb_ft = len(list_features)
+    print("The features: " + ("{} " * nb_ft).format(*list_features))
+    str_print = "The matrix X associated to all articles INPUT:\n{}\n"
+    print(str_print.format(big_x))
+    print("Le dico de l'article : ")
+    for clef, val in dico_id_artv.items():
+        print("{} {}".format(clef, val))
+    print("{:-^75}".format("END big_x and dico_id_artv"))
+
+
+def ShowsResultsNAIVE(dico_pos_naive):
+    """
+    Parameters
+    ----------
+    dico_pos_naive: dict
+        dico_pos_naive = {emp: poss, ...}.
+
+    Returns
+    -------
+    None.
+
+    """
+    print("{:-^75}".format("NAIVE"))
+    for emp, poss in dico_pos_naive.items():
+        nice_emp = ["{:.0f}".format(x) for x in emp]
+        nice_poss = ["{}".format(id_art) for id_art in poss]
+        print("{:<35} {}".format(str(nice_emp), nice_poss))
+    print("{:-^75}".format("END NAIVE"))
+
+
+def ShowsResultsMLV(dico_possi_mlv):
+    """
+    Parameters
+    ----------
+    dico_possi_mlv: dict
+        dico_possi_mlv = {emp: [(score, ida), ...]}.
+
+    Returns
+    -------
+    None.
+
+    """
+    print("{:-^75}".format("DICO POSSI MLV"))
+    for key, value in dico_possi_mlv.items():
+        nice_val = [(round(sc, 2), ida) for sc, ida in value]
+        print("{:<30} {:<35}".format(str(key), str(nice_val)))
+    print("{:-^75}".format("END DICO POSSI MLV"))
+
+
+def ShowsResultsFilteringMLV(dict_mlv_filtered):
+    """
+    Parameters
+    ----------
+    dict_mlv_filtered: dict
+        dict_mlv_filtered = {emp: poss, ...}.
+
+    Returns
+    -------
+    None.
+
+    """
+    print("{:-^75}".format("MLV FILTERED"))
+    for emp, poss in dict_mlv_filtered.items():
+        nice_emp = ["{:.0f}".format(x) for x in emp]
+        nice_poss = ["{:.2f} {}".format(sc, i) for sc, i in poss]
+        print("{:<35} {}".format(str(nice_emp), nice_poss))
+    print("{:-^75}".format("END MLV FILTERED"))
+
+
+def Shows3bestResults(first_results):
+    """
+    Parameters
+    ----------
+    first_results: list of tuples
+        first_results = [(score, ids), ...].
+
+    Returns
+    -------
+    None.
+
+    """
+    print("The 3 results with the best score")
+    for score, ids in first_results:
+        str_print = ""
+        for id_art in ids: str_print += "--{}"
+        print(("{:-<15.2f}" + str_print).format(score, *ids))
+    print("{:-^75}".format("END MDP"))
+
+
+def ShowsWhatsInMDP(mdp_INPUT):
+    """
+
+    Parameters
+    ----------
+    mdp_INPUT: dict
+        mdp_INPUT = {id_mdp: dict_mdp, ...}.
+
+    Returns
+    -------
+    None.
+
+    """
     print("{:-^75}".format("MDP INPUT"))
     for id_mdp, dict_mdp_input in mdp_INPUT.items():
         print("id mdp: {:<25}".format(id_mdp))
@@ -641,51 +989,74 @@ def ExtractAndComputeProposals(dico_bdd,
                 if key != 'blocs':
                     print(f"{key}: {value}")
     print("{:-^75}".format("END-INPUT"))
-    # Attribution sommaire (pour l'instant) d'une rubrique aux articles
-    list_rub = rub_INPUT
-    dico_arts_rub_INPUT = {rub: [] for rub in list_rub}
-    for dict_art in list_arts_INPUT:
-        rub_picked = list_rub[0]
-        # Si la rub est déjà présente, on ajoute l'art à la liste
-        # There is only one rubric in fact
-        dico_arts_rub_INPUT[rub_picked].append(dict_art)
-    # Vérification du dico dico_arts_rub_INPUT
-    if verbose > 2:
-        print("{:-^75}".format("dico_arts_rub_INPUT"))
-        for rub, liste_art in dico_arts_rub_INPUT.items():
-            print(rub)
-            for art in liste_art:
-                list_prt = [elt for elt in art.items() if elt[0] != 'blocs']
-                print("Les blocs : {}".format(art['blocs']))
-                print("Autre caract : \n{}\n".format(list_prt))
-        print("{:-^75}".format("END dico_arts_rub_INPUT"))
-    # Il faut transformer les liste_art en matrice X_INPUT et dico_id_artv
-    dico_arts_rub_X = {}
-    for rub, liste_art in dico_arts_rub_INPUT.items():
-        big_x, dico_id_artv = GetXInput(liste_art, list_features)
-        dico_arts_rub_X[rub] = (big_x, dico_id_artv)
+
+
+def ExtractAndComputeProposals(dico_bdd,
+                               liste_mdp_bdd,
+                               path_data_input,
+                               file_out,
+                               list_features,
+                               verbose=2):
+    """
+
+    Steps of the function:
+        - Creates the lists of dictionaries with the articles and the layout.
+        - Determine the pages that can be made with these articles and that
+        layout.
+        - Create an xml file with the results. The output file associates ids
+        of articles with ids of modules.
+
+    Parameters
+    ----------
+    dico_bdd: dictionary
+        Usual dict with all the info about the pages.
+
+    liste_mdp_bdd: list of tuples
+        liste_mdp_bdd = [(nb, array, list_ids), ...].
+
+    path_data_input: str
+        Corresponds to a directory with 2 or 3 folders which contain the xml
+        files with the articles, the rubric and the layout.
+
+    file_out: str
+        The absolute path of the file that will be created by this function
+        with the results obtained.
+
+    list_features: list of strings
+        The list with the features used to create the vectors article/page.
+
+    verbose: int
+        Whether to print info on what is going on. (default=2)
+
+    Returns
+    -------
+    str
+        Indicates that everything went well.
+
+    """
+
+    # Indexes of nbSign, nbPhoto, aireImg for the function FiltreArticles.
+    list_to_index = ['nbSign', 'aireTot', 'aireImg']
+    ind_features = [list_features.index(x) for x in list_to_index]
+    print("The path_data_input: {}".format(path_data_input))
+
+    # mdp_INPUT: dict (id_mdp: dict_mdp), rub_INPUT: list of strings
+    list_arts_INPUT, mdp_INPUT, rub_INPUT = ExtractionDataInput(path_data_input)
+
+    # Shows how the object mdp_INPUT looks like
+    ShowsWhatsInMDP(mdp_INPUT)
+
+    big_x, dico_id_artv = GetXInput(list_arts_INPUT, list_features)
     # L'obtention du dico_arts_rub_X est une étape important
     # Visualisation des résultats
-    print("{:-^75}".format("dico_arts_rub_X"))
-    for rub, (mat_x, dico_art) in dico_arts_rub_X.items():
-        print("La rubrique : {}".format(rub))
-        nb_ft = len(list_features)
-        print("The features: " + ("{} " * nb_ft).format(*list_features))
-        str_print = "The matrix X associated to all articles INPUT:\n{}\n"
-        print(str_print.format(mat_x))
-        print("Le dico de l'article : ")
-        for clef, val in dico_art.items():
-            print("{} {}".format(clef, val))
-    print("{:-^75}".format("END dico_arts_rub_X"))
-    # Pour chaque MDP, on regarde si on trouve une correspondance dans la BDD
-    # Si pas de correspondance, on passe.
-    # Sinon, on applique la méthode naïve pour filtrer les articles insérables
-    # aux différents emplacements du MDP. Puis on applique la méthode MLV
-    # pour avoir les meilleurs propositions.
+    if verbose > 1:
+        ShowsXDictidartv(big_x, dico_id_artv, list_features)
+
     dict_global_results = {}
     for id_mdp, dict_mdp_input in mdp_INPUT.items():
         dict_global_results[id_mdp] = {}
-        # Transformation du MDP en matrice
+
+        # Transformation MDP into matrix
         list_keys = ['x', 'y', 'width', 'height']
         list_cartons = [[int(dict_carton[x]) for x in list_keys]
                         for dict_carton in dict_mdp_input.values()]
@@ -693,7 +1064,8 @@ def ExtractAndComputeProposals(dico_bdd,
         X_nbImg = [[int(dic_carton[x]) for x in list_feat]
                    for dic_carton in dict_mdp_input.values()]
         mdp_loop = np.array(list_cartons)
-        # Recherche d'une correspondance dans la BDD
+
+        # Search for a correspondance of the MDP INPUT in the data.
         nb_art = mdp_loop.shape[0]
         min_nb_art = 15
         args_select_model = [liste_mdp_bdd, nb_art, min_nb_art]
@@ -706,99 +1078,110 @@ def ExtractAndComputeProposals(dico_bdd,
         else:
             try:
                 res_found = TrouveMDPSim(liste_tuple_mdp, mdp_loop)
-                mdp_ref = res_found[0][1]
-                liste_ids_found = res_found[0][2]
+                mdp_ref, liste_ids_found = res_found[0][1], res_found[0][2]
                 correspondance = True
             except Exception as e:
                 mdp_ref = mdp_loop
                 correspondance = False
                 str_prt = "An exception occurs while searching"
                 print(str_prt + " for correspdces: ", e)
-        # On parcourt les articles INPUT classés par rubrique
-        for rub, (X_input, dico_id_artv) in dico_arts_rub_X.items():
-            # Utilisation de la méthode naïve pour filtrer obtenir les
-            # possibilités de placements
-            args_naive = [mdp_ref, X_nbImg, X_input, dico_id_artv]
-            args_naive += [ind_features, dict_mdp_input, list_arts_INPUT]
+
+        # Method NAIVE
+        X_input = big_x
+        args_naive = [mdp_ref, X_nbImg, X_input, dico_id_artv]
+        args_naive += [ind_features, dict_mdp_input, list_arts_INPUT]
+        try:
+            dico_pos_naive, vents_uniq = methods.MethodeNaive(*args_naive)
+        except Exception as e:
+            print("\nError Method Naive: {}".format(e))
+            print("All the arguments of methods.MethodeNaive: ")
+            print(f"mdp_ref: \n{mdp_ref}\n")
+            print(f"X_nbImg: \n{X_nbImg}\n")
+            print(f"X_input: \n{X_input}\n")
+            print(f"dico_id_artv: \n{dico_id_artv}\n")
+            print(f"ind_features: \n{ind_features}\n")
+            print(f"dict_mdp_input: \n{dict_mdp_input}\n")
+            print(f"list_arts_INPUT: \n{list_arts_INPUT}\n\n\n")
+            print("{:-^80}".format("END ARGUMENTS METHOD NAIVE"))
+            continue
+
+        # Verification of vents_uniq
+        if len(vents_uniq) == 0:
+            str_prt = "When we delete duplicates of the naive method, "
+            str_prt += "there is nothing left."
+            print(str_prt)
+            continue
+
+        # Affichage Results naive
+        if verbose > 1:
+            ShowsResultsNAIVE(dico_pos_naive)
+
+        # Case where we have data about the layout input
+        if correspondance == True:
+            # Method MLV
+            print("{:-^75}".format("CORRESPONDANCE FOUND"))
+            args_mlv = [dico_bdd, liste_ids_found, mdp_ref, X_input]
+            args_mlv += [dico_id_artv, list_features]
             try:
-                dico_pos_naive, vents_uniq = methods.MethodeNaive(*args_naive)
+                dico_possi_mlv = methods.MethodeMLV(*args_mlv)
             except Exception as e:
-                print("Error Method Naive: {}".format(e))
+                print("Error with MethodeMLV: {}".format(e))
                 continue
-            # Verification of vents_uniq
-            if len(vents_uniq) == 0:
-                str_prt = "When we delete duplicates of the naive method, "
-                str_prt += "there is nothing left."
-                print(str_prt)
-                continue
-            # Affichage Results naive
-            print("{:-^75}".format("NAIVE"))
-            for emp, poss in dico_pos_naive.items():
-                nice_emp = ["{:.0f}".format(x) for x in emp]
-                nice_poss = ["{}".format(id_art) for id_art in poss]
-                print("{:<35} {}".format(str(nice_emp), nice_poss))
-            print("{:-^75}".format("END NAIVE"))
-            # Case where we have data about the layout input
-            # We use the Machine Learning Method
-            if correspondance == True:
-                print("{:-^75}".format("CORRESPONDANCE FOUND"))
-                args_mlv = [dico_bdd, liste_ids_found, mdp_ref, X_input]
-                args_mlv += [dico_id_artv, list_features]
-                try:
-                    dico_possi_mlv = methods.MethodeMLV(*args_mlv)
-                except Exception as e:
-                    print("Error with MethodeMLV: {}".format(e))
-                    continue
-                print("{:-^75}".format("DICO POSSI MLV"))
-                for key, value in dico_possi_mlv.items():
-                    nice_val = [(round(sc, 2), ida) for sc, ida in value]
-                    print("{:<30} {:<35}".format(str(key), str(nice_val)))
-                print("{:-^75}".format("END DICO POSSI MLV"))
-                args_filt = [dico_pos_naive, dico_possi_mlv]
-                try:
-                    dict_mlv_filtered = methods.ResultsFiltered(*args_filt)
-                except Exception as e:
-                    print("Error with ResultsFiltered: {}".format(e))
-                    # Case where the mlv method didn't find anything, but the
-                    # naive method did find some possibilities.
-                    args_sel = [vents_uniq, dico_id_artv, ind_features]
-                    first_results = SelectionProposalsNaive(*args_sel)
-                    print("{:*^75}".format("NAIVE BIS"))
-                    for elt in first_results: print(elt)
-                    print("{:*^75}".format("END NAIVE BIS"))
-                    dict_global_results[id_mdp][rub] = first_results
-                    continue
-                # Affichage des résultats
-                print("{:-^75}".format("MLV FILTERED"))
-                for emp, poss in dict_mlv_filtered.items():
-                    nice_emp = ["{:.0f}".format(x) for x in emp]
-                    nice_poss = ["{:.2f} {}".format(sc, i) for sc, i in poss]
-                    print("{:<35} {}".format(str(nice_emp), nice_poss))
-                # Génération des objets avec toutes les pages possibles,
-                # s'il y a des articles pour chaque EMP.
-                first_results = ProposalsWithScore(dict_mlv_filtered)
-                dict_global_results[id_mdp][rub] = first_results
-                print("The 3 results with the best score")
-                for score, ids in first_results:
-                    str_print = ""
-                    for id_art in ids: str_print += "--{}"
-                    print(("{:-<15.2f}" + str_print).format(score, *ids))
-                print("{:-^75}".format("END MDP"))
-            # Dans le cas où le MDP INPUT n'est pas dans la BDD
-            else:
-                print("{:-^75}".format("NO CORRESPONDANCE FOUND"))
-                # On parcourt le(s) MDP INPUT, on applique la méthode naïve
-                # sur les articles INPUT et ce MDP
-                print("{:*^75}".format("VENTS UNIQUE"))
-                for elt in vents_uniq: print(elt)
-                print("{:-^75}".format("END VENTS UNIQUE"))
+
+            # Print the possibilities of the mthod MLV
+            if verbose > 1:
+                ShowsResultsMLV(dico_possi_mlv)
+
+            # We use the dict result of the method NAIVE to filter results
+            args_filt = [dico_pos_naive, dico_possi_mlv]
+            try:
+                dict_mlv_filtered = methods.ResultsFiltered(*args_filt)
+            except Exception as e:
+                print("Error with ResultsFiltered: {}".format(e))
+                # Case where the mlv method didn't find anything, but the
+                # naive method did find some possibilities.
                 args_sel = [vents_uniq, dico_id_artv, ind_features]
                 first_results = SelectionProposalsNaive(*args_sel)
-                print("{:*^75}".format("FIRST RES"))
+                print("{:*^75}".format("NAIVE BIS"))
                 for elt in first_results: print(elt)
-                print("{:*^75}".format("END FIRST RES"))
-                dict_global_results[id_mdp][rub] = first_results
+                print("{:*^75}".format("END NAIVE BIS"))
+                dict_global_results[id_mdp][rub_INPUT] = first_results
+                continue
+
+            # Shows results of the filtering
+            if verbose > 1:
+                ShowsResultsFilteringMLV(dict_mlv_filtered)
+
+            # Génération des objets avec toutes les pages possibles,
+            # s'il y a des articles pour chaque EMP.
+            first_results = ProposalsWithScore(dict_mlv_filtered)
+            dict_global_results[id_mdp][rub_INPUT] = first_results
+
+            # Print the 3 best results
+            if verbose > 1:
+                Shows3bestResults(first_results)
+
+        # Dans le cas où le MDP INPUT n'est pas dans la BDD
+        else:
+            print("{:-^75}".format("NO CORRESPONDANCE FOUND"))
+            # On parcourt le(s) MDP INPUT, on applique la méthode naïve
+            # sur les articles INPUT et ce MDP
+            print("{:*^75}".format("VENTS UNIQUE"))
+            for elt in vents_uniq:
+                print(elt)
+            print("{:-^75}".format("END VENTS UNIQUE"))
+
+            args_sel = [vents_uniq, dico_id_artv, ind_features]
+            first_results = SelectionProposalsNaive(*args_sel)
+            print("{:*^75}".format("FIRST RES"))
+            for elt in first_results:
+                print(elt)
+            print("{:*^75}".format("END FIRST RES"))
+            dict_global_results[id_mdp][rub_INPUT] = first_results
+
     list_created_pg = CreateListeProposalsPage(dict_global_results, mdp_INPUT)
     print("The list of page created: {}".format(list_created_pg))
+    # Writing of the output file with the results
     CreateXmlPageProposals(list_created_pg, file_out)
+
     return "Xml output created"

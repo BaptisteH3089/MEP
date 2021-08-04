@@ -103,13 +103,13 @@ def FillDictCarton(carton_soup):
 
 
 def GetSizeDictArticle(dict_article_curr):
-    if dict_article_curr['nbSignTxt'] < 500:
+    if dict_article_curr['nbSign'] < 500:
         dict_article_curr['taille'] = 0
-    elif 500 <= dict_article_curr['nbSignTxt'] < 2000:
+    elif 500 <= dict_article_curr['nbSign'] < 2000:
         dict_article_curr['taille'] = 1
-    elif 2000 <= dict_article_curr['nbSignTxt'] < 3000:
+    elif 2000 <= dict_article_curr['nbSign'] < 3000:
         dict_article_curr['taille'] = 2
-    elif 3000 <= dict_article_curr['nbSignTxt'] < 4000:
+    elif 3000 <= dict_article_curr['nbSign'] < 4000:
         dict_article_curr['taille'] = 3
     else:
         dict_article_curr['taille'] = 4
@@ -187,11 +187,6 @@ def FillDictArticle(art_soup):
         dict_article_current['abstract'] = int(abst.get('nbsignes'))
     except Exception as e:
         print(e, 'FillDictArticle : abstract')
-    try:
-        txt = art_soup.find('field', {'type':'text'})
-        dict_article_current['nbSignTxt'] = int(txt.get('nbsignes'))
-    except Exception as e:
-        print(e, 'FillDictArticle : nbSignTxt')
     # Article content
     try:
         if art_soup.find('text') is not None:
@@ -697,7 +692,7 @@ def UpdateNew4ft(dict_page):
     aire_img_tot, nbcar_tot, nbimg_tot, aire_tot = 0, 0, 0, 0
     for dict_art in dict_page['articles'].values():
         aire_tot += dict_art['width'] * dict_art['height']
-        nbcar_tot += dict_art['nbSignTxt']
+        nbcar_tot += dict_art['nbSign']
         nbimg_tot += dict_art['nbPhoto']
         for dict_img in dict_art['photo']:
             aire_img_tot += dict_img['width'] * dict_img['height']

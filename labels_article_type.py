@@ -10,8 +10,8 @@ Juste some changes about the distribution of the labels minor, ter, sec
 """
 import pickle
 import matplotlib.pyplot as plt
-import creation_dict_bdd
 import shows_image_page
+import numpy as np
 
 path_customer = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM/'
 
@@ -32,7 +32,6 @@ list_scores = []
 for id_page, dict_page in dict_pages.items():
     for id_article, dict_article in dict_page['articles'].items():
         list_scores.append(dict_article['score'])
-
 plt.hist(list_scores, bins=50)
 plt.xlabel('Score')
 plt.ylabel('Articles')
@@ -66,7 +65,6 @@ rbar = [list_labels.count(lab) / len(list_labels) for lab in set(list_labels)]
 plt.bar(range(4), rbar, width=0.3,
         edgecolor='black', linewidth=0.5)
 plt.xticks(range(4), ['Main', 'Sec', 'Ter', 'Minor'])
-# plt.title('Distribution of the types')
 plt.show()
 
 
@@ -146,7 +144,6 @@ for rub, dict_rub in dict_rb.items():
 ##############################################################################
 
 # We gather the pages that have the same distribution and we plot that.
-
 for rub, dict_rub in dict_rb.items():
     dict_rb[rub]['count'] = sum((nb for _, nb in dict_rub['count_list']))
     dict_rb[rub]['variety'] = len(dict_rb[rub]['count_list'])
@@ -240,4 +237,70 @@ for nbarts, listrep in dict_stats_rep.items():
                 linewidth=0.5)
         plt.xticks(range(len(leg)), leg)
         plt.show()
+
+#%%
+
+##############################################################################
+#                     MEAN VECTOR FOR EACH RUBRIC                            #
+##############################################################################
+
+list_features = ["nbSign","nbBlock", "abstract", "syn", "exergue",
+                 "title", "secTitle", "supTitle", "subTitle", "nbPhoto",
+                 "aireImg", "aireTot", "petittitre", "quest_rep", "intertitre"]
+
+dict_rubric_pages = {}
+for id_page, dicop in dict_pages.items():
+    rubric_page = dicop['catName']
+    id_page = dicop['melodyId']
+    try:
+        dict_rubric_pages[rubric_page][id_page] = dicop
+    except:
+        dict_rubric_pages[rubric_page] = {id_page: dicop}
+
+for key, dict_rub in dict_rubric_pages.items():
+    print(f"{key}: {len(dict_rub)}")
+
+# Construction of the matrix with all the vectors
+dict_rub_matrix = {}
+for rubric, dict_rubric in dict_rubric_pages.items():
+
+    for i, (id_page, dicop) in enumerate(dict_rubric.items()):
+        for j, dicta in enumerate(dicop['articles'].values()):
+            vect_art = np.array([dicta[x] for x in list_features],
+                                ndmin=2)
+            if j == 0:
+                vect_page = vect_art
+            else:
+                vect_page = np.concatenate((vect_page, vect_art))
+        mean_vect_page = np.mean(vect_page, axis=0, keepdims=True)
+        if i == 0:
+            matrix_rubric = mean_vect_page
+        else:
+            matrix_rubric = np.concatenate((matrix_rubric, mean_vect_page))
+    dict_rub_matrix[rubric] = np.mean(matrix_rubric, axis=0)
+    print(f"{rubric}: {np.mean(matrix_rubric, axis=0)}")
+
+# Construction of a dict with the rubric associated to all the mean values
+dd_rubrics = {}
+for rubric, matrix_mean in dict_rub_matrix.items():
+    dd_rubrics[rubric] = {}
+    for feature, mean_value in zip(list_features, matrix_mean):
+        dd_rubrics[rubric][feature] = mean_value
+
+for rub, dict_mean in dd_rubrics.items():
+    print(f"{rub}")
+    for key, val in dict_mean.items():
+        print(f"{key}: {val:.2f}")
+    print("\n\n")
+
+
+
+
+
+
+
+
+
+
+
 
