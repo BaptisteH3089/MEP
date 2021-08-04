@@ -410,8 +410,18 @@ def GetDicoCarton(mdp_ref, X_col_img):
     return dico_cartons
 
 
-def FiltreArticles(dico_id_artv, aire_tot_cart, aire_img_cart, ind_features):
+def FiltreArticles(dico_id_artv,
+                   aire_tot_cart,
+                   aire_img_cart,
+                   ind_features,
+                   tol_area_images=0.5,
+                   tol_area_text=0.4,
+                   tol_total_area=0.3):
     """
+    We filter the articles that respect the constraints imposed by the module.
+        - filtering area of the images
+        - filtering area text
+        - filtering total area
 
     Parameters
     ----------
@@ -427,6 +437,18 @@ def FiltreArticles(dico_id_artv, aire_tot_cart, aire_img_cart, ind_features):
     ind_features: list
         ind_features = [ind_nb_sign, ind_aire_tot, ind_aire_img].
 
+    tol_area_images: float, optional
+        The tolerance between the area of the images of the article and the
+        module. (default=0.5)
+
+    tol_area_text: float, optional
+        The tolerance between the area of the text of the article and the
+        module. (default=0.4)
+
+    tol_total_area: float, optional
+        The tolerance between the area of the article and of the module.
+        (default=0.3)
+
     Raises
     ------
     MyException
@@ -436,19 +458,6 @@ def FiltreArticles(dico_id_artv, aire_tot_cart, aire_img_cart, ind_features):
     -------
     arts_left: list
         The ids of articles that can be inserted in that module.
-
-    """
-    """
-
-    - on fait le filtre sur le nb de caract d'un art - aire des images
-    convertie en nb de caract
-    - si le MDP comprend des images on doit soustraire l'aire des images
-    de l'article à celle de l'aire totale
-    ATTENTION il faut penser à changer les indices de nb_img et area si
-    changement dans les features
-    UPDATE 28/05 :
-        - on enlève le filtre avec nb_img, on fait juste avec aire_img
-        - suppression condition aire img < 2/3 * area_mdp
     """
 
     # ind_aire_tot_art
@@ -461,9 +470,12 @@ def FiltreArticles(dico_id_artv, aire_tot_cart, aire_img_cart, ind_features):
         txt = artv[0][tot] - artv[0][img]
         print("{:<25} {:^25} {:>25}".format(artv[0][tot], artv[0][img], txt))
 
-    # Filtre sur l'aire des images
+    # Filtering on the area of the images.
     print("L'aire des images du carton : {}".format(aire_img_cart))
-    fcn = lambda x: (0.5 * aire_img_cart <= x[1][0][img] <= 1.5 * aire_img_cart)
+
+    fcn = lambda x: ((1 - tol_area_images)*aire_img_cart <= x[1][0][img] \
+                     <= (1 + tol_area_images)*aire_img_cart)
+
     arts_left_img = [ida for ida, _ in filter(fcn, list(dico_id_artv.items()))]
     print("les ids des articles qui correspondent : {}".format(arts_left_img))
     dico_id_artv_img = {ida: dicoa for ida, dicoa in dico_id_artv.items()
@@ -474,10 +486,13 @@ def FiltreArticles(dico_id_artv, aire_tot_cart, aire_img_cart, ind_features):
         str_exc += 'of the images.'
         raise MyException(str_exc)
 
-    # Filtre sur l'aire du texte
+    # Filtering on the area of the text.
     diff = aire_tot_cart - aire_img_cart
     print("L'aire du txt du carton : {}".format(diff))
-    fcn = lambda x: (0.6 * diff <  x[1][0][tot] - x[1][0][img] < 1.4 * diff)
+
+    fcn = lambda x: ((1 - tol_area_text)*diff <  x[1][0][tot] - x[1][0][img] \
+                     < (1 - tol_area_text)*diff)
+
     list_items_dico_idartv = list(dico_id_artv_img.items())
     arts_left_txt = [ida for ida, _ in filter(fcn, list_items_dico_idartv)]
     print("les ids des articles qui correspondent : {}".format(arts_left_txt))
@@ -489,9 +504,10 @@ def FiltreArticles(dico_id_artv, aire_tot_cart, aire_img_cart, ind_features):
         str_exc += 'of the text.'
         raise MyException(str_exc)
 
-    # Filtre sur l'aire totale
+    # Filtering on the total area.
     print("L'aire du carton : {}".format(aire_tot_cart))
-    fcn = lambda x: (0.7 * aire_tot_cart < x[1][0][tot] < 1.3 * aire_tot_cart)
+    fcn = lambda x: ((1 - tol_total_area)*aire_tot_cart < x[1][0][tot] \
+                     < (1 + tol_total_area)*aire_tot_cart)
     arts_left = [ida for ida, _ in filter(fcn, list(dico_id_artv_txt.items()))]
     print("les ids des articles qui correspondent : {}".format(arts_left))
 
@@ -502,8 +518,40 @@ def FiltreArticles(dico_id_artv, aire_tot_cart, aire_img_cart, ind_features):
     return arts_left
 
 
-# Génére toutes les possibilités de placements d'articles
 def ProductList(l1, l2, l3=None, l4=None, l5=None, l6=None, l7=None):
+    """
+
+    Parameters
+    ----------
+    l1: list
+        Any types of list.
+
+    l2: list
+        Any types of list.
+
+    l3: list, optional
+        Any types of list.. The default is None.
+
+    l4: list, optional
+        Any types of list.. The default is None.
+
+    l5: list, optional
+        Any types of list.. The default is None.
+
+    l6: list, optional
+        Any types of list.. The default is None.
+
+    l7: list, optional
+        Any types of list.. The default is None.
+
+    Returns
+    -------
+    list
+        The product of all the lists passes in arguments.
+        Example: l1 = [1, 2, 3], l2 = [4, 5, 6]
+        -> returns: [[1, 4], [1, 5], [1, 6], ..., [3, 5], [3, 6]]
+
+    """
     if l3 is not None:
         if l4 is not None:
             if l5 is not None:
@@ -532,16 +580,38 @@ def ProductList(l1, l2, l3=None, l4=None, l5=None, l6=None, l7=None):
 
 def ScoreArticle(dico_id_artv, dico_cartons, id_art, id_carton, ind_features):
     """
-    Retourne un score basé sur la distance entre aireCarton et nbSignArticle.
-    Il faut aussi prendre en compte le nbImg dans le Carton.
+
+    Parameters
+    ----------
+    dico_id_artv: dict
+        dico_id_artv = {id_article: vector_article, ...}.
+
+    dico_cartons: dict
+        dico_cartons = {id_carton: {'nbImg': ..., ...}, ...}.
+
+    id_art: float
+        The id of the article.
+
+    id_carton: float
+        The id of the module.
+
+    ind_features: list
+        ind_features = [ind_nb_sign, ...].
+
+    Returns
+    -------
+    distance: float
+        The euclidean distance between the number of signs of the article and
+        the relative area(because with remove area of the images) of the
+        module.
+
     """
-    aire_img_moy = 6000
     nb_img = dico_cartons[id_carton]['nbImg']
     width = dico_cartons[id_carton]['width']
     height = dico_cartons[id_carton]['height']
     aire_carton = width * height
-    # la correspondance aire - nbSign est d'environ nbSign ~ aire / 10
-    aire_relative = aire_carton - (5000 * nb_img) / 10
+    # The link area - nbSign is roughly: nbSign ~ area/10
+    aire_relative = aire_carton - (5000*nb_img)/10
     try:
          good_id_art = int(id_art)
     except Exception as e:
@@ -557,12 +627,24 @@ def ScoreArticle(dico_id_artv, dico_cartons, id_art, id_carton, ind_features):
 
 def GetGoodVentMethNaive(every_possib_score):
     """
-    Le problème dans l'objet précédent est qu'un article peut apparaître à 2
-    endroits s'il peut être placé à ces endroits, donc on filtre.
+    Removes the pages with an article that appears in several modules.
+
+    Parameters
+    ----------
+    every_possib_score: list of tuples
+        every_possib_score = [(score, [id_art1, id_art2, id_art3, ...]), ...].
+
+    Returns
+    -------
+    vents: list of tuples
+        vents = [(score, [id1, id2, id3]), ...] for a pages with 3 articles.
+
     """
     nb_art_in_page = len(every_possib_score[0][1])
     f_uni = lambda x: len(set(x[1])) == nb_art_in_page
     ventilations_unique = list(filter(f_uni, every_possib_score))
+
+    # Construction of a dict: {list_articles_page: score_page, ...}.
     dico_vent_score = {}
     for score, liste_id_art in ventilations_unique:
         if tuple(liste_id_art) not in dico_vent_score.keys():
@@ -570,7 +652,8 @@ def GetGoodVentMethNaive(every_possib_score):
         else:
             best_score = min(score, dico_vent_score[tuple(liste_id_art)])
             dico_vent_score[tuple(liste_id_art)] = best_score
-    # Suppression des doublons des ventilations
+
+    # We delete duplicates of the pages results
     vents = [(score, vent) for vent, score in dico_vent_score.items()]
     vents.sort(key=itemgetter(0))
     return vents
@@ -578,7 +661,18 @@ def GetGoodVentMethNaive(every_possib_score):
 
 def SimpleLabels(liste_labels):
     """
-    Retourne une liste de labels simplifiés
+    Reduce the number of labels by aggregating some labels.
+
+    Parameters
+    ----------
+    liste_labels: list of strings
+        liste_labels = ['TEXTE AUTEUR', 'INTERTITRE', ...].
+
+    Returns
+    -------
+    simpler_list: list of strings
+        simpler_list = ['TEXTE', 'PHOTO', ...].
+
     """
     simpler_list = []
     for elt in liste_labels:
@@ -595,16 +689,38 @@ def SimpleLabels(liste_labels):
 
 def FiltreBlocs(dict_mdp_input, list_articles_input, dico_cartons, emp):
     """
-    Retourne les articles dont les labels des blocs correspondent à ceux des
-    cartons
-    dict_mdp_input = {'3764':
-        {'x': 15, 'y': 323, 'width': 280, 'height': 126,
-        'nbCol': 6, 'nbImg': 1, 'aireTotImgs': 8494,
-        'listeAireImgs': [8494], 'aireTot': 44607,
-        'blocs': [{'labels':, ...}, {}, ...]}
-    list_articles_input = [{'blocs': [], melodyId:..., ...}]
+    Returns the articles whose blocks labels correspond to the ones of the
+    modules.
 
-    UPDATE 09/06: We do an inclusion instead of an equality the last lines
+    Parameters
+    ----------
+    dict_mdp_input: dict
+        dict_mdp_input = {'3764': {'x': 15, 'y': 323, 'width': 280,
+                                   'height': 126, 'nbCol': 6, 'nbImg': 1,
+                                   'aireTotImgs': 8494,
+                                   'listeAireImgs': [8494], 'aireTot': 44607,
+                                   'blocs': [{'labels':, ...}, {}, ...]}.
+
+    list_articles_input: list of dicts
+        list_articles_input = [dict_article_input1, dict_article_input2, ...].
+
+    dico_cartons: dict
+        dico_cartons = {emp: dict_module, ...}.
+
+    emp: int
+        The integer associated to the module (back to the function
+        GetDicoCarton).
+
+    Raises
+    ------
+    MyException
+        If we don't find back the module in dict_mdp_input.
+
+    Returns
+    -------
+    liste_arts_poss: list
+        The list with the ids of the articles that respect the constraints of
+        the blocks.
 
     """
     liste_arts_poss = []
@@ -613,6 +729,7 @@ def FiltreBlocs(dict_mdp_input, list_articles_input, dico_cartons, emp):
     f = lambda x: (np.allclose(x[1]['x'], x_cart, atol=10)) & \
         (np.allclose(x[1]['y'], y_cart, atol=10))
     carton_found = dict(filter(f, dict_mdp_input.items()))
+
     if len(carton_found) != 1:
         str_exc = 'Error in FiltreBlocs. len(carton_found) != 1 \n'
         str_exc += 'carton found: {}\n'.format(carton_found)
@@ -621,16 +738,15 @@ def FiltreBlocs(dict_mdp_input, list_articles_input, dico_cartons, emp):
         for id_mdp, dict_mdp in dict_mdp_input.items():
             str_exc += f"{id_mdp}: x={dict_mdp['x']}, y={dict_mdp['y']} \n"
         raise MyException(str_exc)
+
     id_carton = list(carton_found.keys())[0]
-    # print("The carton found with x and y : \n{}".format(carton_found.values()))
+
     # On parcourt les articles, et on compare les éléments blocs
     for dicoa in list_articles_input:
         # On transforme les éléments blocs en une liste de labels plus simple
         blocs_label_art = [dicob['label'] for dicob in dicoa['blocs']]
         blocs_label_carton = [dicob['label']
                               for dicob in carton_found[id_carton]['blocs']]
-        # print("Les labels des articles : {}".format(blocs_label_art))
-        # print("Les labels des cartons : {}".format(blocs_label_carton))
         labels_art = SimpleLabels(blocs_label_art)
         labels_carton = SimpleLabels(blocs_label_carton)
         print("Les labels simples des articles : {}".format(labels_art))
@@ -639,6 +755,7 @@ def FiltreBlocs(dict_mdp_input, list_articles_input, dico_cartons, emp):
         # place this article in that carton.
         if set(labels_art) <= set(labels_carton):
             liste_arts_poss.append(dicoa['melodyId'])
+
     return liste_arts_poss
 
 
@@ -646,31 +763,69 @@ def MethodeNaive(mdp_ref, X_nbImg, X_input, dico_id_artv, ind_features,
                  dict_mdp_input, list_articles_input):
     """
 
-    Renvoie des ventilations en se basant sur le nb d'images dans les cartons
-    et l'aire du carton par rapport au nombre de signes des articles et à
-    l'aire totale des images.
-    Pour faire simple, donne toutes les possibilités de placements tq les
-    articles correspondent à peu près aux cartons
-    ind_features = [ind_nb_sign, ind_aire_tot, ind_area_img]
+    Returns the pages such that the articles has the best fit with the modules.
+
+    Parameters
+    ----------
+    mdp_ref: numpy array
+        The matrix associated to the layout input.
+
+    X_nbImg: list of lists
+        Contains the info about the modules of the layout input.
+        X_nbImg = [[int(dic_carton[x]) for x in list_feat]
+                   for dic_carton in dict_mdp_input.values()]
+
+    X_input: numpy array
+        The matrix with all the articles input.
+        dim(X_input) = (nb_articles, len(list_features))
+
+    dico_id_artv: dict
+        dico_id_artv = {id_article: vector_article, ...}.
+
+    ind_features: list
+        ind_features = [ind_nbSign, ind_aireTot, ind_aireImg]
+
+    dict_mdp_input: dict
+        dict_mdp_input = {id_module: dict_module, ...}.
+
+    list_articles_input: list of dicts
+        List with the dictionaries of the articles input.
+
+    Raises
+    ------
+    MyException
+        If FiltreArticle doesn't work or if no possibility.
+
+    Returns
+    -------
+    new_dico_possib_placements: dict
+        Similar to dico_possib_placements but without the duplicates.
+        new_dico_possib_placements = {(x, y, w, h): [id_article_1, ...], ...}
+
+    ventilations_unique: list of tuples
+        ventilations_unique = [(score, [id1, id2, id3]), ...] for a pages with
+        3 articles..
 
     """
     dico_cartons = GetDicoCarton(mdp_ref, X_nbImg)
     # Création du dico dico_possib_placements
     dico_possib_placements = {id_emp: [] for id_emp in dico_cartons.keys()}
+
     for emp, liste_art_poss in dico_possib_placements.items():
         # CORRESPONDANCE DES BLOCS
         args_filtre = [dict_mdp_input, list_articles_input, dico_cartons, emp]
         liste_art_poss += FiltreBlocs(*args_filtre)
         str_print = "The list of possible arts after the bloc filter"
         print(str_print + " : {}".format(liste_art_poss))
+
         # Pour chaque article, on regarde s'il est insérable à cet emplacement
-        nb_img = dico_cartons[emp]['nbImg']
         aire_img_carton = dico_cartons[emp]['aireImg']
+
         # HUM, VOIR SI PAS MIEUX DE FAIRE AVEC ELTS DE OPTIONS. SI.
         #aire_tot_carton = dico_cartons[emp]['width'] * dico_cartons[emp]['height']
-        #print("AIRE TOTALE AVEC w*h {}".format(aire_tot_carton))
+
         aire_tot_carton = dico_cartons[emp]['aireTot']
-        #print("AIRE TOTALE AVEC options {}".format(aire_tot_carton))
+
         ## GROS CHANGEMENTS ICI
         ## CORRESPONDANCE ENTRE AIRE IMG, AIRE TXT, AIRE TOTALE
         args_filt = [dico_id_artv, aire_tot_carton, aire_img_carton]
@@ -689,13 +844,16 @@ def MethodeNaive(mdp_ref, X_nbImg, X_input, dico_id_artv, ind_features,
             str_exc += "aire_img_carton: {}.\n".format(aire_img_carton)
             str_exc += "extrait de dico_id_artv: {}".format(first_item)
             raise MyException(str_exc)
+
     liste_len = [len(list_id) for list_id in dico_possib_placements.values()]
+
     if 0 in liste_len:
         str_exc = "No possibility for at least one location: {}"
         raise MyException(str_exc.format(liste_len))
+
     l_args = [emp_poss for emp_poss in dico_possib_placements.values()]
     every_possib = ProductList(*l_args)
-    # print("every_possib : \n {}".format(every_possib))
+
     # Calcul des scores de chaque ventil. every_possib = [[id1, id2], ...].
     # Retourne [([id1, id2, id3], score_vent), ...].
     every_possib_score = []
@@ -712,8 +870,10 @@ def MethodeNaive(mdp_ref, X_nbImg, X_input, dico_id_artv, ind_features,
             str_exc += "type(score_vent): {}".format(type(score_vent))
             raise MyException(str_exc)
         every_possib_score.append((score_tot, vent))
+
     # ventilations triées
     ventilations_unique = GetGoodVentMethNaive(every_possib_score)
+
     # ventilations_unique = [(88176, (32234, 28797)), ...]
     # Il faut remplacer les ids des emplacements par les 4-uplets
     new_dico_possib_placements = {}
@@ -721,10 +881,34 @@ def MethodeNaive(mdp_ref, X_nbImg, X_input, dico_id_artv, ind_features,
         list_key = ['x', 'y', 'width', 'height']
         tuple_emp = tuple((dico_cartons[id_emp][key] for key in list_key))
         new_dico_possib_placements[tuple_emp] = liste_id_articles
+
     return new_dico_possib_placements, ventilations_unique
 
 
 def ResultsFiltered(dico_possib_naive, dico_possib_mlv):
+    """
+    Filtering of the results of the method MLV with the results of the method
+    NAIVE.
+
+    Parameters
+    ----------
+    dico_possib_naive: dict
+        dico_possib_naive = {id_module: list_articles_naive, ...}.
+
+    dico_possib_mlv: dict
+        dico_possib_mlv = {id_module: list_articles_mlv, ...}.
+
+    Raises
+    ------
+    MyException
+        If there is no possibility.
+
+    Returns
+    -------
+    dict_mlv_filtered: dict
+        dict_mlv_filtered = {id_module: list_articles_filtered, ...}.
+
+    """
     # The two dictionaries must have the same keys
     if set(dico_possib_naive.keys()) != set(dico_possib_mlv.keys()):
         str_exc = "The two dicts input of ResultsFiltered don't have the "
@@ -732,14 +916,18 @@ def ResultsFiltered(dico_possib_naive, dico_possib_mlv):
         str_exc += "keys d_naive: {}\n".format(list(dico_possib_naive.keys()))
         str_exc += "keys d_mlv: {}\n".format(list(dico_possib_mlv.keys()))
         raise MyException(str_exc)
+
     dict_mlv_filtered = {}
     for key_naive, key_mlv in zip(dico_possib_naive.keys(),
                                   dico_possib_mlv.keys()):
         f = lambda x: x[1] in dico_possib_naive[key_mlv]
         val_filtered = list(filter(f, dico_possib_mlv[key_mlv]))
+
         if len(val_filtered) == 0:
             str_exc = "After filtration with the predictions of the "
             str_exc += "mlv method, there is no possibility left"
             raise MyException(str_exc)
+
         dict_mlv_filtered[key_mlv] = val_filtered
+
     return dict_mlv_filtered

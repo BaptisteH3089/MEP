@@ -12,8 +12,10 @@ chemin_mcavoid: /Users/baptistehessel/Documents/DAJ/SIM/fichiers_pickle/MC_Avoid
 list_features: ["nbSign","nbBlock", "abstract", "syn", "exergue",
                 "title", "secTitle", "supTitle", "subTitle", "nbPhoto",
                 "aireImg", "aireTot", "petittitre", "quest_rep", "intertitre"]
+[CONSTRAINTS]
+tol_total_area: 0.08
+tol_nb_images: 1
+
 [CUSTOMERS]
 CM: 5001
 CF: 5002
-
-

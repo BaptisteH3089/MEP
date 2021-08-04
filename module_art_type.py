@@ -10,10 +10,10 @@ an article.
 
 """
 from sklearn.feature_extraction.text import TfidfVectorizer
-import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import ShuffleSplit
 from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import f1_score
 from sklearn.svm import LinearSVC, SVC
@@ -24,9 +24,15 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
+from sklearn import linear_model
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.metrics import explained_variance_score
+from xgboost import XGBRegressor
+import xgboost as xgb
+import numpy as np
 import sys
 import re
-import xgboost as xgb
 import time
 
 
@@ -90,41 +96,85 @@ def CleanCorpus(corpus, dict_lem):
     return corpus
 
 
-def MatricesXYArticleContent(dict_pages, dict_lem, max_features=None,
+def MatricesXYArticleContent(dict_pages,
+                             dict_lem,
+                             max_features=None,
                              ngram_range=(1, 2)):
+    """
+    Creates the matrices X and Y to train the model that predicts the type of
+    an article with the content of the article.
+
+    Parameters
+    ----------
+    dict_pages: dict
+        The big dict with the data.
+
+    dict_lem: dict
+        The dict used to lemmatized. It is part of our data.
+        It associates words and lemma.
+
+    max_features: int, optional
+        The max number of features (words) in X.
+        The default is None.
+
+    ngram_range: tuple with 2 integers, optional
+        If (1, 1) we only use single words, if (1, 2) we use the single words
+        and the 2 grams.
+        The default is (1, 2).
+
+    Returns
+    -------
+    X: sparse matrix
+        Contains the tf-idf score of each word for each article.
+
+    Y: numpy array
+        Vector column with the labels of the articles.
+
+    """
     corpus, Y = CreationCorpusLabels(dict_pages)
     print(f"The length of corpus: {len(corpus)}.")
     print(f"The length of Y: {len(Y)}.")
+
     # The content of the articles
     corpus = CleanCorpus(corpus, dict_lem)
     # Converting text into vector with tf-idf
     vectorizer = TfidfVectorizer(max_features=max_features,
                                  ngram_range=ngram_range)
     X = vectorizer.fit_transform(corpus)
+
     return X, np.array(Y)
 
 
-# Creation of the vectors X and Y
-def MatricesTypeArticle(dict_pages, list_features):
+
+def MatricesTypeArticle(dict_pages, list_features, score=False):
     """
+    The matrices X and Y used to validate the models with the features that
+    predict the type of an article.
+
     Parameters
     ----------
-    dict_pages : dictionary
+    dict_pages: dictionary
         The usual dict with all pages.
-    list_features : list of strings
+
+    list_features: list of strings
         The features to use. They correspond to the keys of the dicta.
+
+    score: bool, optional
+        If score is False, we store the labels in Y (classification).
+        If score is True, we store the scores in Y (regression).
 
     Raises
     ------
     MyException
-        DESCRIPTION.
+        If there is an article without label.
 
     Returns
     -------
-    X : numpy array
+    X: numpy array
         A matrix X with nbcols = len(list_features) + 3 (nb_nums, nb_mails,
         mean number of words by paragraph text).
-    Y : numpy array
+
+    Y: numpy array
         A matrix column with the labels (0, 1, 2, or 3).
     """
     X, Y = [], []
@@ -134,11 +184,11 @@ def MatricesTypeArticle(dict_pages, list_features):
         # if (np.array(nb_signs) > 2000).any():
         for ida, dicta in dicop['articles'].items():
             if len(dicta['content']) > 10:
-                txt = dicta['content']
-                pattern_num = r'(\d\d\.\d\d\.\d\d\.\d\d\.\d\d\.)'
-                nb_nums = len(re.findall(pattern_num , txt))
-                pattern_mel = r'\w+@\w+\.com'
-                nb_mels = len(re.findall(pattern_mel , txt))
+                # txt = dicta['content']
+                # pattern_num = r'(\d\d\.\d\d\.\d\d\.\d\d\.\d\d\.)'
+                # nb_nums = len(re.findall(pattern_num , txt))
+                # pattern_mel = r'\w+@\w+\.com'
+                # nb_mels = len(re.findall(pattern_mel , txt))
                 dicta['aireTot'] = dicta['width'] * dicta['height']
                 # Add the mean number of signs of the blocks 'texte'
                 l_nbs = []
@@ -146,26 +196,36 @@ def MatricesTypeArticle(dict_pages, list_features):
                 for type_block, nb_sign in zip(*args_z):
                     if type_block == 'texte':
                         l_nbs.append(nb_sign)
-                mean_nbs = sum(l_nbs) / len(l_nbs) if len(l_nbs) > 0 else 0
+                # mean_nbs = sum(l_nbs) / len(l_nbs) if len(l_nbs) > 0 else 0
                 try:
-                    other_features = [nb_nums, nb_mels, mean_nbs]
-                    x = [dicta[z] for z in list_features] + other_features
+                    # other_features = [nb_nums, nb_mels, mean_nbs]
+                    # x = [dicta[z] for z in list_features] + other_features
+                    x = [dicta[z] for z in list_features]
                     x = np.array(x)
                 except Exception as e:
                     print(e)
                     print(dicta)
                     sys.exit()
-                if dicta['isPrinc'] == 1:
-                    y = 0
-                elif max(dicta['isSec'], dicta['isSub']) == 1:
-                    y = 1
-                elif dicta['isTer'] == 1:
-                    y = 2
-                elif dicta['isMinor'] == 1:
-                    y = 3
+                # We store the score of the article.
+                if score:
+                    try:
+                        y = dicta['score']
+                    except Exception as e:
+                        print(f"Exception MatricesTypeArticle: {e}")
+                        print(f"dict_article: {dicta}")
+                # We store the label of the article (the type).
                 else:
-                    print(dicta)
-                    raise MyException("No label for this article")
+                    if dicta['isPrinc'] == 1:
+                        y = 0
+                    elif max(dicta['isSec'], dicta['isSub']) == 1:
+                        y = 1
+                    elif dicta['isTer'] == 1:
+                        y = 2
+                    elif dicta['isMinor'] == 1:
+                        y = 3
+                    else:
+                        print(dicta)
+                        raise MyException("No label for this article")
                 X.append(x)
                 Y.append(y)
     return np.array(X), np.array(Y)
@@ -176,6 +236,7 @@ def MatricesTypeArticle(dict_pages, list_features):
 #                 MODEL PREDS CONTENT AND FEATURES                           #
 #                                                                            #
 ##############################################################################
+
 
 def ModelFeatures(X, Y):
     lr = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))
@@ -474,3 +535,203 @@ def OptiThresholds(X, Y, Xc, Yc):
         best_of_all.append(best)
     return best_of_all
 
+
+def CrossValidationRegression(X, Y):
+    """
+    Cross-validation of the regression models to predict the scores.
+
+    Parameters
+    ----------
+    X: numpy array
+        The matrix with the vector articles concatenated.
+
+    Y: numpy array
+        A column vector with the scores.
+
+    Returns
+    -------
+    dict_results: dict
+        The dict with all the scores and durations.
+
+    """
+
+    linreg = linear_model.LinearRegression()
+    ridge = linear_model.Ridge(alpha=.5)
+    lasso = linear_model.Lasso(alpha=0.1)
+    elastic = linear_model.ElasticNet(random_state=0)
+    rfr = RandomForestRegressor()
+    xgbreg = XGBRegressor()
+    ss = ShuffleSplit(n_splits=5)
+
+    regr_names = ['linreg', 'ridge', 'lasso', 'elastic', 'rfr', 'xgbreg']
+    dict_results = {x: {'mse': [], 'mae': [], 'evs': [], 'duration': []}
+                    for x in regr_names}
+
+    for i, (train, test) in enumerate(ss.split(X, Y)):
+
+        print(f"FOLD: {i}")
+
+        # Training of the models
+        t = time.time()
+        linreg.fit(X[train], Y[train])
+        t_linreg = time.time() - t
+        dict_results['linreg']['duration'].append(t_linreg)
+
+        t = time.time()
+        ridge.fit(X[train], Y[train])
+        t_ridge = time.time() - t
+        dict_results['ridge']['duration'].append(t_ridge)
+
+        t = time.time()
+        lasso.fit(X[train], Y[train])
+        t_lasso = time.time() - t
+        dict_results['lasso']['duration'].append(t_lasso)
+
+        t = time.time()
+        elastic.fit(X[train], Y[train])
+        t_elastic = time.time() - t
+        dict_results['elastic']['duration'].append(t_elastic)
+
+        t = time.time()
+        rfr.fit(X[train], Y[train])
+        t_rfr = time.time() - t
+        dict_results['rfr']['duration'].append(t_rfr)
+
+        t = time.time()
+        xgbreg.fit(X[train], Y[train])
+        t_xgbreg = time.time() - t
+        dict_results['xgbreg']['duration'].append(t_xgbreg)
+
+        # Preds of the models
+        preds_linreg = linreg.predict(X[test])
+        preds_ridge = ridge.predict(X[test])
+        preds_lasso = lasso.predict(X[test])
+        preds_elastic = elastic.predict(X[test])
+        preds_rfr = rfr.predict(X[test])
+        preds_xgbreg = xgbreg.predict(X[test])
+
+        # Scores of the models
+        # MSE
+        mse_linreg = mean_squared_error(Y[test], preds_linreg)
+        mse_ridge = mean_squared_error(Y[test], preds_ridge)
+        mse_lasso = mean_squared_error(Y[test], preds_lasso)
+        mse_elastic = mean_squared_error(Y[test], preds_elastic)
+        mse_rfr = mean_squared_error(Y[test], preds_rfr)
+        mse_xgbreg = mean_squared_error(Y[test], preds_xgbreg)
+
+        # MAE
+        mae_linreg = mean_absolute_error(Y[test], preds_linreg)
+        mae_ridge = mean_absolute_error(Y[test], preds_ridge)
+        mae_lasso = mean_absolute_error(Y[test], preds_lasso)
+        mae_elastic = mean_absolute_error(Y[test], preds_elastic)
+        mae_rfr = mean_absolute_error(Y[test], preds_rfr)
+        mae_xgbreg = mean_absolute_error(Y[test], preds_xgbreg)
+
+        # Explained variance
+        evs_linreg = explained_variance_score(Y[test], preds_linreg)
+        evs_ridge = explained_variance_score(Y[test], preds_ridge)
+        evs_lasso = explained_variance_score(Y[test], preds_lasso)
+        evs_elastic = explained_variance_score(Y[test], preds_elastic)
+        evs_rfr = explained_variance_score(Y[test], preds_rfr)
+        evs_xgbreg = explained_variance_score(Y[test], preds_xgbreg)
+
+        # Add to the dict_results
+        # MSE
+        dict_results['linreg']['mse'].append(mse_linreg)
+        dict_results['ridge']['mse'].append(mse_ridge)
+        dict_results['lasso']['mse'].append(mse_lasso)
+        dict_results['elastic']['mse'].append(mse_elastic)
+        dict_results['rfr']['mse'].append(mse_rfr)
+        dict_results['xgbreg']['mse'].append(mse_xgbreg)
+
+        # MAE
+        dict_results['linreg']['mae'].append(mae_linreg)
+        dict_results['ridge']['mae'].append(mae_ridge)
+        dict_results['lasso']['mae'].append(mae_lasso)
+        dict_results['elastic']['mae'].append(mae_elastic)
+        dict_results['rfr']['mae'].append(mae_rfr)
+        dict_results['xgbreg']['mae'].append(mae_xgbreg)
+
+        # EVS
+        dict_results['linreg']['evs'].append(evs_linreg)
+        dict_results['ridge']['evs'].append(evs_ridge)
+        dict_results['lasso']['evs'].append(evs_lasso)
+        dict_results['elastic']['evs'].append(evs_elastic)
+        dict_results['rfr']['evs'].append(evs_rfr)
+        dict_results['xgbreg']['evs'].append(evs_xgbreg)
+
+    # Add mean scores to the dict and show them
+    # Mean evs
+    dict_results['linreg']['mean_evs'] = np.mean(dict_results['linreg']['evs'])
+    dict_results['ridge']['mean_evs'] = np.mean(dict_results['ridge']['evs'])
+    dict_results['lasso']['mean_evs'] = np.mean(dict_results['lasso']['evs'])
+    dict_results['elastic']['mean_evs'] = np.mean(dict_results['elastic']['evs'])
+    dict_results['rfr']['mean_evs'] = np.mean(dict_results['rfr']['evs'])
+    dict_results['xgbreg']['mean_evs'] = np.mean(dict_results['xgbreg']['evs'])
+
+    # Mean mse
+    dict_results['linreg']['mean_mse'] = np.mean(dict_results['linreg']['mse'])
+    dict_results['ridge']['mean_mse'] = np.mean(dict_results['ridge']['mse'])
+    dict_results['lasso']['mean_mse'] = np.mean(dict_results['lasso']['mse'])
+    dict_results['elastic']['mean_mse'] = np.mean(dict_results['elastic']['mse'])
+    dict_results['rfr']['mean_mse'] = np.mean(dict_results['rfr']['mse'])
+    dict_results['xgbreg']['mean_mse'] = np.mean(dict_results['xgbreg']['mse'])
+
+    # Mean mae
+    dict_results['linreg']['mean_mae'] = np.mean(dict_results['linreg']['mae'])
+    dict_results['ridge']['mean_mae'] = np.mean(dict_results['ridge']['mae'])
+    dict_results['lasso']['mean_mae'] = np.mean(dict_results['lasso']['mae'])
+    dict_results['elastic']['mean_mae'] = np.mean(dict_results['elastic']['mae'])
+    dict_results['rfr']['mean_mae'] = np.mean(dict_results['rfr']['mae'])
+    dict_results['xgbreg']['mean_mae'] = np.mean(dict_results['xgbreg']['mae'])
+
+    # Mean duration
+    mean_dura_linreg = np.mean(dict_results['linreg']['duration'])
+    mean_dura_ridge = np.mean(dict_results['ridge']['duration'])
+    mean_dura_lasso = np.mean(dict_results['lasso']['duration'])
+    mean_dura_elastic = np.mean(dict_results['elastic']['duration'])
+    mean_dura_rfr = np.mean(dict_results['rfr']['duration'])
+    mean_dura_xgbreg = np.mean(dict_results['xgbreg']['duration'])
+    dict_results['linreg']['mean_duration'] = mean_dura_linreg
+    dict_results['ridge']['mean_duration'] = mean_dura_ridge
+    dict_results['lasso']['mean_duration'] = mean_dura_lasso
+    dict_results['elastic']['mean_duration'] = mean_dura_elastic
+    dict_results['rfr']['mean_duration'] = mean_dura_rfr
+    dict_results['xgbreg']['mean_duration'] = mean_dura_xgbreg
+
+    # Shows mean results
+    for regr in regr_names:
+        for sc in ['mean_mse', 'mean_mae', 'mean_evs', 'mean_duration']:
+            print(f"{regr:<15}: {sc:<18} = {dict_results[regr][sc]:>10.3f}")
+
+    return dict_results
+
+
+def TuningParamModelPredictionScore(X, Y):
+    """
+    Do a gridsearchcv for the model XGBoost that predicts the score of an
+    article.
+
+    Parameters
+    ----------
+    X: numpy array
+        Concatenation of vectors article.
+
+    Y: numpy array
+        Column vector with the scores of the articles.
+
+    Returns
+    -------
+    dict
+        the best parameters found by the gridsearchcv.
+
+    """
+    xgbreg = XGBRegressor()
+    parameters = {'eta': [0.2, 0.3, 0.4],
+                  'max_depth': [6, 7],}
+    clf = GridSearchCV(xgbreg, parameters, verbose=4,
+                       scoring='neg_mean_absolute_error')
+    clf.fit(X, Y)
+    print(f"The best parameters: {clf.best_params_}")
+    print(f"The best scores: {clf.best_score_}")
+    return clf.best_params_

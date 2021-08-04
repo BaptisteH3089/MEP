@@ -53,6 +53,9 @@ parser.add_argument('path_objects',
 parser.add_argument('--content',
                     help='Whether to validate the model with the content.',
                     action='store_true')
+parser.add_argument('--regression',
+                    help='Whether to validate the model regression score.',
+                    action='store_true')
 parser.add_argument('--features',
                     help='Whether to validate the model with the features.',
                     action='store_true')
@@ -75,9 +78,13 @@ parser.add_argument('--concat',
 parser.add_argument('--tuning',
                     help='Whether to perform a grid-search.',
                     action='store_true')
+parser.add_argument('--tuning_score',
+                    help='Whether to perform a gridsearch on the model score.',
+                    action='store_true')
 args = parser.parse_args()
 print("{:-^80}".format("All the arguments"))
 print(f"args.content: {args.content}")
+print(f"args.regression: {args.regression}")
 print(f"args.features: {args.features}")
 print(f"args.max_features: {args.max_features}")
 print(f"args.xgb: {args.xgb}")
@@ -292,4 +299,11 @@ if args.concat:
         # The results are not good, better than just the content but worst
         # than with only the features.
 
-
+if args.regression:
+    print("{:-^80}".format("REGRESSION"))
+    # Instead of the labels of the type, I should store the score in Y
+    args_mat = [dict_pages, list_features]
+    Xreg, Yreg = module_art_type.MatricesTypeArticle(*args_mat, score=True)
+    print(module_art_type.CrossValidationRegression(Xreg, Yreg))
+    if args.tuning_score:
+        print(module_art_type.TuningParamModelPredictionScore(Xreg, Yreg))

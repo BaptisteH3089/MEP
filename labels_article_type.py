@@ -10,6 +10,7 @@ Juste some changes about the distribution of the labels minor, ter, sec
 """
 import pickle
 import matplotlib.pyplot as plt
+# %cd /Users/baptistehessel/Documents/DAJ/MEP/montageIA/bin
 import shows_image_page
 import numpy as np
 
@@ -288,19 +289,10 @@ for rubric, matrix_mean in dict_rub_matrix.items():
         dd_rubrics[rubric][feature] = mean_value
 
 for rub, dict_mean in dd_rubrics.items():
-    print(f"{rub}")
-    for key, val in dict_mean.items():
-        print(f"{key}: {val:.2f}")
-    print("\n\n")
-
-
-
-
-
-
-
-
-
-
-
-
+    nb_pages = len(dict_rubric_pages[rub])
+    if nb_pages > 200:
+        print(f"Number of pages using the rubric: {nb_pages}")
+        print(f"{rub}")
+        for key, val in dict_mean.items():
+            print(f"{key}: {val:.2f}")
+        print("\n\n")

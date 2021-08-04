@@ -15,13 +15,15 @@ import time
 import module_montage
 import propositions
 import methods
+import module_art_type
+from xgboost import XGBRegressor
 
 
 class MyException(Exception):
     pass
 
 
-def ConstraintArea(all_ntuple):
+def ConstraintArea(all_ntuple, tol_total_area=0.08):
     """
 
     Parameters
@@ -38,24 +40,27 @@ def ConstraintArea(all_ntuple):
         all_ntuple.
 
     """
-    # Now we select the ones that respect the constraint
+    # Now we select the ones that respect the constraint of the total area.
+    # Don't know about this value mean_area
     mean_area = 95000
     possib_area = []
     all_sums = []
     for ntuple in all_ntuple:
         sum_art = sum((art[0] for art in ntuple))
         all_sums.append(sum_art)
-        if 0.92 * mean_area <= sum_art <= 1.08 * mean_area:
+        if (1 - tol_total_area)*mean_area <= sum_art \
+            <= (1 + tol_total_area) * mean_area:
             # If constraint ok, we add the id of the article
             possib_area.append(tuple([art[-1] for art in ntuple]))
-    print("{} {} articles left.".format("Constraint area", len(possib_area)))
-    print("{} {:1f}.".format("Mean area", np.mean(all_sums)))
+
+    print(f"Constraint area: {len(possib_area)} articles left.")
+    print(f"Mean area: {np.mean(all_sums):1f}.")
+
     return possib_area
 
 
-def ConstraintImgs(all_ntuple):
+def ConstraintImgs(all_ntuple, tol_nb_images=1):
     """
-
     Selects the pages with at least 1 images in it.
 
     Parameters
@@ -72,9 +77,9 @@ def ConstraintImgs(all_ntuple):
         all_ntuple.
         The ntuples are the combinations of articles that respect the
         constraint "image".
-
     """
-    possib_imgs, all_nb_imgs = [], []
+    possib_imgs = []
+    all_nb_imgs = []
     for ntuple in all_ntuple:
         try:
             nb_imgs = sum((art[1] for art in ntuple))
@@ -82,15 +87,19 @@ def ConstraintImgs(all_ntuple):
             str_prt = (f"Error with the sum of the nbImg: {e}.\n"
                        f"ntuple: {ntuple}.\nnb_imgs: {nb_imgs}")
             print(str_prt)
+
         all_nb_imgs.append(nb_imgs)
-        if nb_imgs >= 1:
+
+        if nb_imgs >= tol_nb_images:
             possib_imgs.append(tuple([art[-1] for art in ntuple]))
-    print("{} {} articles left.".format("Constraint images", len(possib_imgs)))
-    print("{} {}.".format("Mean nb of images", np.mean(all_nb_imgs)))
+
+    print(f"Constraint images {len(possib_imgs)} articles left.")
+    print(f"Mean nb of images: {np.mean(all_nb_imgs)}.")
+
     return possib_imgs
 
 
-def ConstraintScore(all_ntuple):
+def ConstraintScore(all_ntuple, tol_score_min=0.20):
     """
     Selects the pages with at least an article with a score > 0.35
 
@@ -112,10 +121,12 @@ def ConstraintScore(all_ntuple):
     for ntuple in all_ntuple:
         max_score = max((art[2] for art in ntuple))
         all_max_score.append(max_score)
-        if max_score >= .35:
+        if max_score >= tol_score_min:
             possib_score.append(tuple([art[-1] for art in ntuple]))
+
     print("{} {}.".format("Constraint score", len(possib_score)))
     print("{} {}.".format("Mean score", np.mean(all_max_score)))
+
     return possib_score
 
 
@@ -425,7 +436,7 @@ def PredsModel(X, Y, list_vect_page, trained_gbc):
     list_vect_page: list of numpy array
         list_vect_page = [vect_page0, ...].
 
-    trained_gbc:
+    trained_gbc: scikit learn object
         A trained Gradient Boosting Classifier.
 
     Returns
@@ -458,6 +469,8 @@ def PredsModel(X, Y, list_vect_page, trained_gbc):
 
 def CreationDDArt(rep_data):
     """
+    Creates a dict of dictionaries with the articles input extracted from the
+    archive.
 
     Parameters
     ----------
@@ -510,7 +523,7 @@ def GenerationAllNTupleFromFiles(dict_arts_input, nb_arts):
 
     """
 
-    list_feat = ['aireTot', 'nbPhoto', 'melodyId']
+    list_feat = ['aireTot', 'nbPhoto', 'score', 'melodyId']
     val_dict = dict_arts_input.values()
     select_arts = [[dicta[x] for x in list_feat] for dicta in val_dict]
 
@@ -551,7 +564,9 @@ def GenerationAllNTupleFromFiles(dict_arts_input, nb_arts):
     return all_ntuple
 
 
-def GetSelectionOfArticlesFromFiles(all_ntuples):
+def GetSelectionOfArticlesFromFiles(all_ntuples,
+                                    tol_total_area,
+                                    tol_nb_images):
     """
 
     Parameters
@@ -559,6 +574,13 @@ def GetSelectionOfArticlesFromFiles(all_ntuples):
     all_ntuples: list of tuples
         List with all the possibilities of pages with nb_arts in it.
         all_ntuples = [([dicta[x] for x in list_feat], ...), ...].
+
+    tol_total_area: float
+        The tolerance between the area of the module and of the article.
+        between 0 and 1
+
+    tol_nb_images: int
+        The minimum number of images of the pages results.
 
     Returns
     -------
@@ -568,11 +590,12 @@ def GetSelectionOfArticlesFromFiles(all_ntuples):
 
     """
     # Use of the constraints
-    possib_area = ConstraintArea(all_ntuples)
-    possib_imgs = ConstraintImgs(all_ntuples)
+    possib_area = ConstraintArea(all_ntuples, tol_total_area=tol_total_area)
+    possib_imgs = ConstraintImgs(all_ntuples, tol_nb_images=tol_nb_images)
+    possib_scores = ConstraintScore(all_ntuples)
     # CONSTRAINT SCORE ??? -> I should add that
     # Intersection of each result obtained
-    final_obj = set(possib_imgs) & set(possib_area)
+    final_obj = set(possib_imgs) & set(possib_area) & set(possib_scores)
     str_prt = "The number of ntuples that respect the two constraints"
     print("{}: {}.".format(str_prt, len(final_obj)))
     return final_obj
@@ -647,7 +670,7 @@ def SelectBestTriplet(all_triplets, list_features):
 
         weights = []
         for weight in weights_tmp:
-            weights += [weight] * 15
+            weights += [weight]*15
         if len(weights) != size_vect_pg:
             print("Something's wrong with the weights")
             print("weights\n", weights)
@@ -888,13 +911,88 @@ def GetMeanStdFromList(big_list_sc_label_vectsh):
     return global_mean_vect, global_vect_std
 
 
+def XScores(dict_arts_input, list_features):
+    """
+    Builds the matrix X with all the articles input. The point is to use this
+    matrix to predict the score.
+
+    Parameters
+    ----------
+    dict_arts_input: dict
+        dict_arts_input = {id_article: dict_article, ...}.
+
+    list_features: list of strings
+        The features used to build X.
+
+    Returns
+    -------
+    X: numpy array
+        The matrix with all the vectors input.
+        dim(X) = (nb_articles_input, len(list_features)).
+
+    """
+    for k, dicta in enumerate(dict_arts_input.values()):
+        vect_art = np.array([dicta[x] for x in list_features], ndmin=2)
+        if k == 0:
+            X = vect_art
+        else:
+            X = np.concatenate((X, vect_art), axis=0)
+    return X
+
+
+def AttributesScoresToArticlesInput(dict_pages, list_features, dict_arts_input):
+    """
+    Gives a score to each article input and add this score to the
+    dict_arts_input.
+
+    Parameters
+    ----------
+    dict_pages: dict of dicts
+        The big dict with all the data about the pages.
+
+    list_features: list of strings
+        The usual list with the features used to predict the score.
+
+    dict_arts_input: dict of dicts
+        dict_arts_input = {id_article: dict_article, ...}.
+
+    Returns
+    -------
+    dict_arts_input: dict
+        Same as in the input but with the key 'score' added.
+
+    """
+    X_input = XScores(dict_arts_input, list_features)
+    print(f"Shape of X_input: {X_input.shape}")
+
+    args_mat = [dict_pages, list_features]
+    Xreg, Yreg = module_art_type.MatricesTypeArticle(*args_mat, score=True)
+    print(f"Shape of Xreg: {Xreg.shape}")
+
+    # Training of the model
+    xgbreg = XGBRegressor()
+    xgbreg.fit(Xreg, Yreg)
+
+    # We predict the scores for the new articles
+    preds_xgbreg = xgbreg.predict(X_input)
+    for ida, score_pred in zip(dict_arts_input.keys(), preds_xgbreg):
+        dict_arts_input[ida]['score'] = score_pred
+        for key, val in dict_arts_input[ida].items():
+            print(f"{key}: {val}.")
+        print("\n\n")
+
+    return dict_arts_input
+
+
 def ProposalsWithoutGivenLayout(file_in,
                                 file_out,
-                                dico_bdd,
+                                dict_pages,
                                 dict_arts,
                                 list_mdp_data,
                                 dict_gbc,
-                                list_features):
+                                list_features,
+                                tol_total_area,
+                                tol_nb_images):
     """
     Parameters
     ----------
@@ -904,7 +1002,7 @@ def ProposalsWithoutGivenLayout(file_in,
     file_out: str
         Path to a file that will contain the results of this function.
 
-    dico_bdd: dictionary
+    dict_pages: dictionary
         The keys are the ids of the pages and the value a dictionary with all
         the elements of the articles of that page.
 
@@ -921,6 +1019,13 @@ def ProposalsWithoutGivenLayout(file_in,
         The list with the features used to form the vectors and train the
         models.
 
+    tol_total_area: float
+        The tolerance between the area of the module and of the article.
+        between 0 and 1
+
+    tol_nb_images: int
+        The minimum number of images of the pages results.
+
     Returns
     -------
     all_triplets_scores: list
@@ -933,11 +1038,19 @@ def ProposalsWithoutGivenLayout(file_in,
     dur = time.time() - start_time
     print("Duration loading input: {:*^12.2f} sec.".format(dur))
 
+    # Here, I can build the matrices X (concatenation art), Y (scores)
+    # The point is to use the model to predict the score
+    args_sc = [dict_pages, list_features, dict_arts_input]
+    dict_arts_input = AttributesScoresToArticlesInput(*args_sc)
+
     big_list_sc_label_vectsh = []
     list_vectsh_ids = []
     # A dictionary of dictionary
     dd_labels = {}
+
+    # We create pages with a number of articles between 2 and 5
     for nb_arts in range(2, 5):
+
         t1 = time.time()
         print("\n{:-^80}\n".format("PAGES WITH {} ARTS".format(nb_arts)))
         print(f"We test wether we can build pages with {nb_arts} articles.\n")
@@ -946,33 +1059,45 @@ def ProposalsWithoutGivenLayout(file_in,
 
         # The set set_ids_page is made of list of ids that respect the basic
         # constraints of a page
-        set_ids_page = GetSelectionOfArticlesFromFiles(all_ntuples)
+        set_ids_page = GetSelectionOfArticlesFromFiles(all_ntuples,
+                                                       tol_total_area,
+                                                       tol_nb_images)
         if len(set_ids_page) == 0:
             print("As there are no possibilities, we go to the next number.")
             continue
 
-        # All the short vectors page. For now it is vectors of size 15 which are
-        # the sum of all vectors articles in the page
-        list_short_vect_page = FillShortVectorPage(set_ids_page, list_features, dict_arts_input)
-        # We add the couple (sh_vect, ids) to all_list_couples_sh_vect_ids
-        # This will be used to find back the ids of the articles which form the
-        # page.
+        # All the short vectors page. For now it is vectors of size 15 which
+        # are the sum of all vectors articles in the page
+        args_fill = [set_ids_page, list_features, dict_arts_input]
+        list_short_vect_page = FillShortVectorPage(*args_fill)
+
+        # We add the couple (sh_vect, ids) to all_list_couples_sh_vect_ids.
+        # This will be used to find back the ids of the articles which form
+        # the page.
         for short_vect, ids_page in zip(list_short_vect_page, set_ids_page):
             list_vectsh_ids.append((short_vect, ids_page))
+
         # But I also need the long vectors page for the predictions
         args_files = [set_ids_page, dict_arts_input, list_features]
         list_long_vect_page = CreationListVectorsPageFromFiles(*args_files)
-        if len(list_long_vect_page) == 0: continue
+
+        if len(list_long_vect_page) == 0:
+            continue
+
         # Now, I train the model. Well, first the matrices
         nb_pgmin = 20
-        args_cr = [dico_bdd, dict_arts, list_mdp_data, nb_arts, nb_pgmin]
+        args_cr = [dict_pages, dict_arts, list_mdp_data, nb_arts, nb_pgmin]
         X, Y, dict_labels = CreateXYFromScratch(*args_cr, list_features)
+
         t_model = time.time()
         preds_gbc = PredsModel(X, Y, list_long_vect_page, dict_gbc[nb_arts])
         d_mod = time.time() - t_model
+
         str_prt = f"Duration model {nb_arts} articles"
         print(f"{str_prt} {d_mod:*^12.2f} sec.")
+
         dd_labels[nb_arts] = dict_labels
+
         # I add the score given by preds_gbc to the short vect_page and the
         # index of the max because it is the label predicted.
         list_score_label_vectsh = []
@@ -981,6 +1106,7 @@ def ProposalsWithoutGivenLayout(file_in,
             sc_page = max(preds_gbc[0])
             list_score_label_vectsh.append((sc_page, label_pred, short_vect_pg))
         big_list_sc_label_vectsh += list_score_label_vectsh
+
         str_prt = "Total duration pages {} arts".format(nb_arts)
         print("{} {:*^12.2f} sec.".format(str_prt, time.time() - t1))
         print("{:-^80}".format(""))
@@ -991,8 +1117,10 @@ def ProposalsWithoutGivenLayout(file_in,
                     for i, p1 in enumerate(big_list_sc_label_vectsh)
                     for j, p2 in enumerate(big_list_sc_label_vectsh[i + 1:])
                     for p3 in big_list_sc_label_vectsh[i + j + 2:]]
+
     args_all_nb = [all_triplets, gbal_mean_vect, gbal_vect_std]
     all_triplets_scores = SelectBestTripletAllNumbers(*args_all_nb)
+
     str_prt = "Duration computation scores triplet"
     print("{} {:*^12.2f} sec.".format(str_prt, time.time() - t2))
 
@@ -1189,7 +1317,9 @@ def FinalResultsMethodNoLayout(file_in,
                                list_mdp_data,
                                dict_gbc,
                                dict_layouts,
-                               list_features):
+                               list_features,
+                               tol_total_area,
+                               tol_nb_images):
     """
 
     Parameters
@@ -1218,11 +1348,18 @@ def FinalResultsMethodNoLayout(file_in,
             {id_layout: {'nameTemplate': str,
                          'cartons': list,
                          'id_pages': list,
-                         'array': np.array}, ...}
+                         'array': np.array},
+            ...}
 
     list_features: list of strings
         The list with the features used to train the model and predict the
         layouts.
+
+    tol_total_area: float
+        The tolerance between the area of the module and of the article. between 0 and 1
+
+    tol_nb_images: int
+        The minimum number of images of the pages results.
 
     Returns
     -------
@@ -1232,7 +1369,8 @@ def FinalResultsMethodNoLayout(file_in,
     """
     start_time = time.time()
     args = [file_in, file_out, dico_bdd, dict_arts, list_mdp_data, dict_gbc]
-    res_proposals = ProposalsWithoutGivenLayout(*args, list_features)
+    args += [list_features, tol_total_area, tol_nb_images]
+    res_proposals = ProposalsWithoutGivenLayout(*args)
     triplets_scores, dd_labels, dicta_input, list_vectsh_ids = res_proposals
 
     # Shows the results in the prompt and isolates the final ids of articles

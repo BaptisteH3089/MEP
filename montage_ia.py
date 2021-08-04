@@ -81,7 +81,9 @@ config.read(main_args.path_param_file)
 param = {'path_log': config.get('LOG', 'path_log'),
          'path_data': config.get('DATA', 'path_data'),
          'port': config.get('CUSTOMERS', main_args.customer_code),
-         'list_features': json.loads(config.get('FEATURES', 'list_features'))}
+         'list_features': json.loads(config.get('FEATURES', 'list_features')),
+         'tol_total_area': float(config.get('CONSTRAINTS', 'tol_total_area')),
+         'tol_nb_images': int(config.get('CONSTRAINTS', 'tol_nb_images'))}
 
 # LOGGER
 
@@ -245,6 +247,7 @@ class GetLayout(Resource):
 
                 args_nolay = [path_data_input, file_out, dict_pages, dict_arts]
                 args_nolay += [list_mdp, dict_gbc, dict_layouts, list_features]
+                args_nolay += [param['tol_total_area'], param['tol_nb_images']]
                 without_layout.FinalResultsMethodNoLayout(*args_nolay)
             logger.info('End of GET')
         except Exception as e:

@@ -152,7 +152,7 @@ def FillDictArticle(art_soup):
             dict_article_current['aireTot'] = 0
     except Exception as e:
         print(e, 'FillDictArticle : width and height')
-    # Pb sur cet export (14/12), le nombre de signe art = 0
+
     try:
         dict_article_current['nbSign'] = int(art_soup.get('nbsignes'))
     except Exception as e:
@@ -204,6 +204,7 @@ def FillDictArticle(art_soup):
         dict_article_current['nbBlock'] = len(art_soup.find_all('block'))
     except Exception as e:
         print(e, 'FillDictArticle : nbBlock')
+
     # Type of the blocks
     try:
         l_blocks = []
@@ -217,6 +218,7 @@ def FillDictArticle(art_soup):
         dict_article_current['typeBlock'] = l_type_blocks
     except Exception as e:
         print(e, 'FillDictArticle : nbSignBlock and typeBlock')
+
     try:
         auth = art_soup.find('field', {'type': 'author'})
         dict_article_current['author'] = int(auth.get('nbsignes'))
@@ -249,12 +251,14 @@ def FillDictArticle(art_soup):
             dict_article_current['posArt'] = 0
     except Exception as e:
         print(e, 'FillDictArticle : posArt')
+
     # Initialisation de la hiérarchie des articles
     dict_article_current['isPrinc'] = 0
     dict_article_current['isSec'] = 0
     dict_article_current['isMinor'] = 0
     dict_article_current['isSub'] = 0
     dict_article_current['isTer'] = 0
+
     return dict_article_current
 
 
@@ -383,12 +387,14 @@ def DetermPrinc(dict_page):
         ids_max_htr = [ida for y, ida in htr if y == max_htr]
         if id_art in ids_max_htr:
             p += 0.15
+
         # Augmentation de la proba si article avec la plus grande aire
         # Max area possible = 126 000
         # If area <= 10 000, small article
         # We divise by 126 000 and do minus 0.08 (10 000 / 126 000 = 0.08)
         aire_std_art = (dict_art['width']*dict_art['height'])/126000 - 0.08
         p += aire_std_art / 3
+
         # Détermination si l'article possède un/des article(s) lié(s)
         coord_art = (dict_art['x'], dict_art['y'])
         largeur = dict_art['width']
@@ -406,32 +412,45 @@ def DetermPrinc(dict_page):
             p += 0.2
             dict_art['has_incl'] = len(art_bound)
         # Nb images
-        if dict_art['nbPhoto'] == 0: p -= 0.1
-        elif dict_art['nbPhoto'] > 0: p += 0.1
+        if dict_art['nbPhoto'] == 0:
+            p -= 0.1
+        elif dict_art['nbPhoto'] > 0:
+            p += 0.1
         # Title
-        if dict_art['title'] == 0: p -= 0.2
+        if dict_art['title'] == 0:
+            p -= 0.2
         # SupTitle
-        if dict_art['supTitle'] > 0: p += 0.05
+        if dict_art['supTitle'] > 0:
+            p += 0.05
         # SecondaryTitle
-        if dict_art['secTitle'] > 0: p += 0.05
+        if dict_art['secTitle'] > 0:
+            p += 0.05
         # SubTitle
-        if dict_art['subTitle'] > 0: p += 0.05
+        if dict_art['subTitle'] > 0:
+            p += 0.05
         # Petittitre
-        if 'petittitre' in dict_art['typeBlock']: p += 0.05
+        if 'petittitre' in dict_art['typeBlock']:
+            p += 0.05
         # Synopsis
-        if dict_art['syn'] > 0: p += 0.1
+        if dict_art['syn'] > 0:
+            p += 0.1
         # Abstract
-        if dict_art['abstract'] > 0: p += 0.1
+        if dict_art['abstract'] > 0:
+            p += 0.1
         # Exergue
-        if dict_art['exergue'] > 0: p += 0.1
+        if dict_art['exergue'] > 0:
+            p += 0.1
         # Position_Article
-        if dict_art['posArt'] > 0: p += 0.2
+        if dict_art['posArt'] > 0:
+            p += 0.2
         probas.append((round(p, 2), id_art))
         dict_art['score'] = p
+
     # En cas d'égalité
     pmax = max(probas, default=(0, 0))[0]
     if pmax == 0:
         return dict_page
+
     ids_max = [ida for proba, ida in probas if proba == pmax]
     if len(ids_max) > 1:
         # Il faut prendre l'article le plus haut
@@ -446,8 +465,10 @@ def DetermPrinc(dict_page):
             id_art_p = ids_max_htr[0]
     else:
         id_art_p =  ids_max[0]
+
     # Mise à jour de l'attribut isPrinc
     dict_page['articles'][id_art_p]['isPrinc'] = 1
+
     return dict_page
 
 

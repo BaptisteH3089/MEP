@@ -86,6 +86,7 @@ def OpeningArticle(file_path_article):
 def ExtractDicoArtInput(file_path):
     """
     Parsing of a xml file with an article.
+    aireTot = dico_block['originalheight'] * dico_block['originalwidth']
 
     Parameters
     ----------
