@@ -43,21 +43,60 @@ def DeleteOnePageFromDatabase(path_file_in,
                               dict_page_array,
                               dict_page_array_fast,
                               dict_layouts):
+    """
+    Deletes the articles in the given page from all the files in the data.
+
+    Parameters
+    ----------
+    path_file_in: str
+        The path to the file with the input file with the articles to delete.
+
+    file_out: str
+        The path to write the output xml for the communication with Melody.
+
+    dict_pages: dict
+        The dict with all the info about the pages.
+
+    dict_arts: dict
+        dict_arts = {id_article: dict_article, ...}.
+
+    list_mdp: list of tuples
+        list_mdp = [(nb_pages, array_layout, list_ids_page), ...].
+
+    dict_page_array: dict
+        dict_page_array = {id_page: array_page, ...}.
+
+    dict_page_array_fast: dict of dicts
+        dict_page_array_fast = {2: dict_page_array_2, 3:..., ...}.
+
+    dict_layouts: dict
+        dict_layouts = {id_layout: dict_layout, ...}.
+
+    Returns
+    -------
+    database: list
+        database = [dict_pages, dict_arts, list_mdp,
+                    dict_page_array, dict_page_array_fast, dict_layouts]
+
+    """
     with open(str(path_file_in), "r", encoding='utf-8') as file:
         content = file.readlines()
     content = "".join(content)
     soup = bs(content, "lxml")
     infos_page = soup.find('page')
     id_page_to_delete = float(infos_page.get('melodyid'))
+
     # We check whether the id of the page is in the data.
     if id_page_to_delete not in dict_pages.keys():
         print(f"The page to delete is not in the data.")
         database = [dict_pages, dict_arts, list_mdp, dict_page_array]
         database += [dict_page_array_fast, dict_layouts]
         return database
+
     # We start to delete the elements from the data
     dict_page_array.pop(id_page_to_delete, -1)
     dict_page_array_fast.pop(id_page_to_delete, -1)
+
     # We remove from the dict_layouts
     for id_layout, dict_lay in dict_layouts.items():
         if id_page_to_delete in dict_lay['id_pages']:
@@ -69,6 +108,7 @@ def DeleteOnePageFromDatabase(path_file_in,
             else:
                 dict_layouts.pop(id_layout, -1)
             break
+
     # We remove from the list_mdp
     for i, (nbp, arrayp, list_ids) in enumerate(list_mdp):
         if id_page_to_delete in list_ids:
@@ -79,14 +119,18 @@ def DeleteOnePageFromDatabase(path_file_in,
             else:
                 list_mdp.pop(i)
             break
+
     # We find the ids of the articles and we delete them
     list_ids_articles = dict_pages[id_page_to_delete]['articles']
     for id_art in list_ids_articles:
         dict_arts.pop(id_art, -1)
+
     # Finally, we delete the page from the dict_pages
     dict_pages.pop(id_page_to_delete, -1)
     database = [dict_pages, dict_arts, list_mdp, dict_page_array]
     database += [dict_page_array_fast, dict_layouts]
+
     # Creation of the xml file_out to communicate with the webservice
     module_montage.Creationxml("OK", file_out)
+
     return database

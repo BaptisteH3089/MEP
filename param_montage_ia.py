@@ -1,21 +1,47 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+The files Dico, Avoid and MC_Avoid are the same as the ones used for
+similarity. For now, they are not necessary.
+
+The sections FEATURES and CONSTRAINTS correspond to some parameters of the
+algorithm.
+
+The section verbose contains:
+    - verbose: integer >= 0.
+    If 0 we don't print anything, else we print intermediate results in the
+    prompt.
+
+"""
 [LOG]
-path_log: /Users/baptistehessel/Documents/DAJ/MEP/montageIA/log/montage_ia.log
+path_log: /var/log/daj/montageia/montage_ia.log
+
 [DATA]
-path_data: /Users/baptistehessel/Documents/DAJ/MEP/montageIA/data
-[FICHIERS]
-chemin_dico: /Users/baptistehessel/Documents/DAJ/SIM/fichiers_pickle/FlatDict
-chemin_avoid: /Users/baptistehessel/Documents/DAJ/SIM/fichiers_pickle/Avoid
-chemin_mcavoid: /Users/baptistehessel/Documents/DAJ/SIM/fichiers_pickle/MC_Avoid
+path_data: /data/montageia/corpus/
+
+[FILES]
+chemin_dico: /data/montageia/bin/Dico
+chemin_avoid: /data/montageia/bin/Avoid
+chemin_mcavoid: /data/montageia/bin/MC_Avoid
+
 [FEATURES]
-list_features: ["nbSign","nbBlock", "abstract", "syn", "exergue",
+list_features: ["nbSign", "nbBlock", "abstract", "syn", "exergue",
                 "title", "secTitle", "supTitle", "subTitle", "nbPhoto",
                 "aireImg", "aireTot", "petittitre", "quest_rep", "intertitre"]
+
 [CONSTRAINTS]
 tol_total_area: 0.08
 tol_nb_images: 1
+tol_score_min: 0.2
+
+[VERBOSE]
+verbose: 0
 
 [CUSTOMERS]
-CM: 5001
-CF: 5002
+CM: 6001
+CF: 6002
+
+
+
+
+

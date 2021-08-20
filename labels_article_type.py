@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 # %cd /Users/baptistehessel/Documents/DAJ/MEP/montageIA/bin
 import shows_image_page
 import numpy as np
+import matplotlib.patches as mpatches
 
 path_customer = '/Users/baptistehessel/Documents/DAJ/MEP/montageIA/data/CM/'
 
@@ -264,6 +265,7 @@ for key, dict_rub in dict_rubric_pages.items():
 # Construction of the matrix with all the vectors
 dict_rub_matrix = {}
 for rubric, dict_rubric in dict_rubric_pages.items():
+    dict_rub_matrix[rubric] = {}
 
     for i, (id_page, dicop) in enumerate(dict_rubric.items()):
         for j, dicta in enumerate(dicop['articles'].values()):
@@ -278,14 +280,15 @@ for rubric, dict_rubric in dict_rubric_pages.items():
             matrix_rubric = mean_vect_page
         else:
             matrix_rubric = np.concatenate((matrix_rubric, mean_vect_page))
-    dict_rub_matrix[rubric] = np.mean(matrix_rubric, axis=0)
+    dict_rub_matrix[rubric]['mean'] = np.mean(matrix_rubric, axis=0)
+    dict_rub_matrix[rubric]['matrix'] = matrix_rubric
     print(f"{rubric}: {np.mean(matrix_rubric, axis=0)}")
 
 # Construction of a dict with the rubric associated to all the mean values
 dd_rubrics = {}
-for rubric, matrix_mean in dict_rub_matrix.items():
+for rubric, dict_matrix_rubric in dict_rub_matrix.items():
     dd_rubrics[rubric] = {}
-    for feature, mean_value in zip(list_features, matrix_mean):
+    for feature, mean_value in zip(list_features, dict_matrix_rubric['mean']):
         dd_rubrics[rubric][feature] = mean_value
 
 for rub, dict_mean in dd_rubrics.items():
@@ -296,3 +299,156 @@ for rub, dict_mean in dd_rubrics.items():
         for key, val in dict_mean.items():
             print(f"{key}: {val:.2f}")
         print("\n\n")
+
+
+#%%
+
+##############################################################################
+#                       MEAN VECTOR FOR EACH TYPE                            #
+##############################################################################
+
+
+# Building of the big matrix X with all the articles
+for i, (id_page, dicop) in enumerate(dict_pages.items()):
+    for j, (ida, dicta) in enumerate(dicop['articles'].items()):
+        vect_art = np.array([dicta[x] for x in list_features], ndmin=2)
+        if i + j == 0:
+            Xfull = vect_art
+        else:
+            Xfull = np.concatenate((Xfull, vect_art))
+
+print(f"Xfull shape: {Xfull.shape}")
+
+# PCA fit with that big matrix
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+
+sc = StandardScaler()
+Z  = sc.fit_transform(Xfull)
+
+pca = PCA(n_components=2)
+pca.fit(Z)
+
+print(f"Explained variance ration: {np.cumsum(pca.explained_variance_ratio_)}")
+
+
+#%%
+
+# Mean Vectors for each type
+dict_type = {'main': {}, 'sec': {}, 'ter': {}, 'minor': {}}
+list_types = ['isPrinc', 'isSec', 'isSub', 'isTer', 'isMinor']
+for i, (id_page, dicop) in enumerate(dict_pages.items()):
+    for j, (ida, dicta) in enumerate(dicop['articles'].items()):
+        if dicta['isPrinc'] == 1:
+            art_type = 'main'
+        elif dicta['isSec'] == 1:
+            art_type = 'sec'
+        elif dicta['isSub'] == 1:
+            art_type = 'sec'
+        elif dicta['isTer'] == 1:
+            art_type = 'ter'
+        elif dicta['isMinor'] == 1:
+            art_type = 'minor'
+        else:
+            print(f"Article without type: {ida}")
+        dict_type[art_type][ida] = dicta
+
+for key, val in dict_type.items():
+    print(f"{key}. {len(val)}")
+
+# Addition of the big matrix
+for art_type, dict_one_type in dict_type.items():
+    print(f"Type: {art_type}")
+    for i, (ida, dicta) in enumerate(dict_one_type.items()):
+        vect_art = np.array([dicta[x] for x in list_features], ndmin=2)
+        if i == 0:
+            Xtype = vect_art
+        else:
+            Xtype = np.concatenate((Xtype, vect_art))
+    print(f"Shape of Xtype: {Xtype.shape}")
+    dict_type[art_type]['matrix'] = Xtype
+    mean_vect = sc.transform(np.mean(Xtype, axis=0, keepdims=True))
+    dict_type[art_type]['mean_vector'] = mean_vect
+    print(f"The mean vector: {mean_vect}")
+
+
+
+#%%
+
+# Reduction of the mean vector with PCA
+for art_type, dict_one_type in dict_type.items():
+    Xred = pca.transform(np.array(dict_one_type['mean_vector'], ndmin=2))
+    dict_type[art_type]['mean_reduced'] = Xred
+    print(f"Type: {art_type}")
+    print(f"The reduction gives: {Xred}")
+
+
+#%%
+
+# Representation of the means
+for art_type, dict_one_type in dict_type.items():
+    plt.scatter(dict_one_type['mean_reduced'][0][0],
+                dict_one_type['mean_reduced'][0][1])
+
+
+#%%
+
+colors = ['darkred', 'navy', 'green', 'orange']
+# Representation of each vector
+for type_art, color in zip(dict_type.keys(), colors):
+    X_sc = sc.transform(dict_type[type_art]['matrix'])
+    X_red = pca.transform(X_sc)
+    plt.scatter(X_red[:, 0], X_red[:, 1],
+                s=.5, alpha=0.8, c=color, label=type_art)
+plt.legend()
+
+print(f"Explained variance ration: {np.cumsum(pca.explained_variance_ratio_)}")
+
+
+#%%
+
+##############################################################################
+#                 REPRESENTATION WITH PCA BY RUBRIC                          #
+##############################################################################
+
+
+mat_rub = dict_rub_matrix['CM_CORSE INFOS']['matrix']
+Xrub_sc = sc.transform(mat_rub)
+Xrub_red = pca.transform(Xrub_sc)
+plt.scatter(Xrub_red[:, 0], Xrub_red[:, 1], c='purple', linewidths=1,
+            s=1, alpha=0.3, label='CM_CORSE INFOS', marker='o')
+
+mat_rub = dict_rub_matrix['CM_SPORTS']['matrix']
+Xrub_sc = sc.transform(mat_rub)
+Xrub_red = pca.transform(Xrub_sc)
+plt.scatter(Xrub_red[:, 0], Xrub_red[:, 1], c='green', linewidths=1,
+            s=2, alpha=0.3, label='CM_SPORTS', marker='.')
+
+mat_rub = dict_rub_matrix['CM_LOC_SARTENE']['matrix']
+Xrub_sc = sc.transform(mat_rub)
+Xrub_red = pca.transform(Xrub_sc)
+plt.scatter(Xrub_red[:, 0], Xrub_red[:, 1], c='red', linewidths=1,
+            s=0.8, alpha=0.1, label='CM_LOC_SARTENE', marker='x')
+
+mat_rub = dict_rub_matrix['CM_UNE']['matrix']
+Xrub_sc = sc.transform(mat_rub)
+Xrub_red = pca.transform(Xrub_sc)
+plt.scatter(Xrub_red[:, 0], Xrub_red[:, 1], c='orange', linewidths=1,
+            s=1.5, alpha=1, label='CM_UNE', marker='o')
+
+mat_rub = dict_rub_matrix['CM_LOC_CALVI']['matrix']
+Xrub_sc = sc.transform(mat_rub)
+Xrub_red = pca.transform(Xrub_sc)
+plt.scatter(Xrub_red[:, 0], Xrub_red[:, 1], c='blue', linewidths=1,
+            s=1, alpha=0.075, label='CM_LOC_CALVI', marker='o')
+
+purple_patch = mpatches.Patch(color='purple', label='CM_CORSE INFOS')
+green_patch = mpatches.Patch(color='green', label='CM_SPORTS')
+orange_patch = mpatches.Patch(color='orange', label='CM_UNE')
+red_patch = mpatches.Patch(color='red', label='CM_LOC_SARTENE')
+blue_patch = mpatches.Patch(color='blue', label='CM_LOC_CALVI')
+plt.legend(handles=[purple_patch, green_patch, orange_patch, red_patch,
+                    blue_patch])
+
+
+

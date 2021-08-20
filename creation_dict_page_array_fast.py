@@ -41,10 +41,10 @@ def CreationDictPageArrayFast(dict_page_array, path_customer, save_dict=True):
         if unique_key > 10:
             break
         print(f"The layouts with {unique_key} modules.")
-        print((f"The 5 first elements:"))
+        print((f"The first element:"))
         for i, (id_page, layout_array) in enumerate(dict_small.items()):
             print(f"{id_page} \n {layout_array}")
-            if i == 4:
+            if i == 0:
                 break
     # Save the dict.
     if save_dict:

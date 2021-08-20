@@ -13,10 +13,6 @@ Object necessary:
 Creates the dict_page_array which is of the form:
     - {id_page: numpy_array_layout, ...}.
 
-The arguments of the script are:
-    - path_customer ("The repertory where there is the dict_pages.")
-    - --save_dict (default=True)
-
 """
 import pickle
 import numpy as np
@@ -36,7 +32,7 @@ def CreationDictPageArray(dict_pages, path_customer, save_dict=True):
     for idp, arrayp in dict_page_array.items():
         print(idp)
         print(arrayp)
-        if s == 10:
+        if s == 2:
             break
         s += 1
     # Save the dict

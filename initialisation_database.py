@@ -24,19 +24,29 @@ import creation_dict_layout
 import creation_dict_page_array
 import creation_dict_page_array_fast
 import creation_list_mdp_data
+import time
 
 
 parser = argparse.ArgumentParser(description="Create the customer's database.")
 parser.add_argument('rep_data',
-                    help='The directory with the xml files.',
+                    help=('The directory with the xml files. For example: '
+                          '/data/montageia/in/export'),
                     type=str)
 parser.add_argument('dir_customer',
                     help='The directory where we will store the objects.',
                     type=str)
-parser.add_argument('--list_mdp',
-                    help='Whether to create this list which takes time.',
+parser.add_argument('--no_list_mdp',
+                    help=('Whether to create this list which takes time. If '
+                          'you add --no_list_mdp to the command line. We do '
+                          'not create that file.'),
                     action='store_false')
 args = parser.parse_args()
+
+
+print(f"args.no_list_mdp: {args.no_list_mdp}.")
+
+# Initialisation of the time
+t0 = time.time()
 
 # Test about rep_data
 if os.path.isdir(args.rep_data):
@@ -63,47 +73,57 @@ if os.path.isdir(dir_customer):
         if i == 12:
             print("And maybe more entries...")
             break
-    x = input("Continue ? y/n ", )
-    if x == 'n':
-        print("Script interrupted.")
-        sys.exit()
 else:
     # We make the directory
+    print("Creation of the directory.")
     os.mkdir(dir_customer)
 
+
 # We begin by creating the dict_pages and also the dict_arts
-x = str(input("Creation of dict_pages ? y/n "))
-if x == 'y':
-    creation_dict_bdd.CreationDictPages(args.rep_data, dir_customer)
+print("Beginning of the creation of the dict_pages.")
+creation_dict_bdd.CreationDictPages(args.rep_data, dir_customer)
+print("dict_pages. Over.")
+print(f"Duration from the beginning: {time.time() - t0:.2f} sec.\n\n")
+
 
 # Then, the dict_layouts
 # Loading of the dictionary with all information on pages
 with open(dir_customer + 'dict_pages','rb') as f:
     dict_pages = pickle.load(f)
-x = str(input("Creation of dict_layouts ? y/n "))
-if x == 'y':
-    creation_dict_layout.CreationDictLayoutsSmall(dict_pages, dir_customer)
 
-x = str(input("Quit ? y/n "))
-if x == 'y':
-    sys.exit()
+print("Beginning of the creation of the dict_layouts.")
+creation_dict_layout.CreationDictLayoutsSmall(dict_pages, dir_customer)
+print("dict_layouts. Over.")
+print(f"Duration from the beginning: {time.time() - t0:.2f} sec.\n\n")
+
 
 # Then, dict_page_array
-x = str(input("Creation of dict_page_array ? y/n "))
-if x == 'y':
-    creation_dict_page_array.CreationDictPageArray(dict_pages, dir_customer)
+print("Beginning of the creation of the dict_page_array.")
+creation_dict_page_array.CreationDictPageArray(dict_pages, dir_customer)
+print("dict_page_array. Over.")
+print(f"Duration from the beginning: {time.time() - t0:.2f} sec.\n\n")
+
 
 # Also, dict_page_array_fast
+print("Beginning of the creation of the dict_page_array_fast.")
 with open(dir_customer + 'dict_page_array','rb') as f:
     dict_page_array = pickle.load(f)
 
-x = str(input("Creation of dict_page_array_fast ? y/n "))
-if x == 'y':
-    args_fast = [dict_page_array, dir_customer]
-    creation_dict_page_array_fast.CreationDictPageArrayFast(*args_fast)
+args_fast = [dict_page_array, dir_customer]
+creation_dict_page_array_fast.CreationDictPageArrayFast(*args_fast)
+print("dict_page_array_fast. Over.")
+print(f"Duration from the beginning: {time.time() - t0:.2f} sec.\n\n")
+
 
 # Finally, list_mdp_data if we want to wait...
-with open(dir_customer + 'dict_page_array_fast', 'rb') as file:
-    dict_page_array_fast = pickle.load(file)
-if args.list_mdp:
+if args.no_list_mdp is False:
+    print("We do not create the list_mdp. Script over.")
+    sys.exit()
+else:
+    with open(dir_customer + 'dict_page_array_fast', 'rb') as file:
+        dict_page_array_fast = pickle.load(file)
+    print("Beginning of the creation of the list_mdp.")
     creation_list_mdp_data.CreationListMdp(dict_page_array_fast, dir_customer)
+    print("list_mdp. Over.")
+
+print(f"Total duration: {time.time() - t0:.2f} sec.\n\n")

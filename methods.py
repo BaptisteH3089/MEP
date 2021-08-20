@@ -67,7 +67,7 @@ def TransformArrayIntoClasses(big_y, list_classes, tol=10):
     # For each vect_module of the matrix big_y, we search for a match into
     # the "list_classes"
     for i in range(n):
-        # If the max diff is < 10, there is a match
+        # If the max diff is < tol, there is a match
         if max(abs(big_y[i] - list_classes[i][0])) < tol:
             little_y[i] = list_classes[i][1]
         else:
@@ -106,11 +106,11 @@ def GetVectorArticleInput(dico_vector_input, features):
     if len(features_left) > 0:
         sentence = "Some features aren't in the dict:\n"
         raise MyException(sentence + "{}".format(features_left))
+
     vector_art = []
     other_features = ['abstract', 'syn', 'exergue', 'title', 'secTitle']
     other_features += ['subTitle', 'supTitle']
     for feature in features:
-        vector_art.append(dico_vector_input[feature])
         if feature in other_features:
             # We only add indicators functions
             if dico_vector_input[feature] > 0:
@@ -158,7 +158,6 @@ def GetTrainableData(dico_bdd, list_id_pages, y_ref, features):
     classes = GetYClasses(y_ref)
     for cpt, id_page in enumerate(list_id_pages):
         # Formation de la big matrice X pour toute la page
-        x_all_articles, y_all_articles = np.zeros(0), np.zeros(0)
         # Récupération du dico associé à chaque art dans la BDD
         dico_arts_page = dico_bdd[id_page]['articles']
         # Boucle pour créer les matrices x, y associées aux pages
@@ -414,6 +413,7 @@ def FiltreArticles(dico_id_artv,
                    aire_tot_cart,
                    aire_img_cart,
                    ind_features,
+                   verbose,
                    tol_area_images=0.5,
                    tol_area_text=0.4,
                    tol_total_area=0.3):
@@ -436,6 +436,9 @@ def FiltreArticles(dico_id_artv,
 
     ind_features: list
         ind_features = [ind_nb_sign, ind_aire_tot, ind_aire_img].
+
+    verbose: int >= 0
+        If verbose > 0, print intermediate results.
 
     tol_area_images: float, optional
         The tolerance between the area of the images of the article and the
@@ -465,19 +468,24 @@ def FiltreArticles(dico_id_artv,
     # ind_area_img_art
     img = ind_features[2]
 
-    print("{:<25} {:^25} {:>25}".format('TOT', 'IMG', 'TXT'))
-    for ida, artv in dico_id_artv.items():
-        txt = artv[0][tot] - artv[0][img]
-        print("{:<25} {:^25} {:>25}".format(artv[0][tot], artv[0][img], txt))
+    if verbose > 0:
+        print("{:<25} {:^25} {:>25}".format('TOT', 'IMG', 'TXT'))
+        for ida, artv in dico_id_artv.items():
+            txt = artv[0][tot] - artv[0][img]
+            print(f"{artv[0][tot]:<25} {artv[0][img]:^25} {txt:>25}")
 
     # Filtering on the area of the images.
-    print("L'aire des images du carton : {}".format(aire_img_cart))
+    if verbose > 0:
+        print("L'aire des images du carton : {}".format(aire_img_cart))
 
     fcn = lambda x: ((1 - tol_area_images)*aire_img_cart <= x[1][0][img] \
                      <= (1 + tol_area_images)*aire_img_cart)
 
     arts_left_img = [ida for ida, _ in filter(fcn, list(dico_id_artv.items()))]
-    print("les ids des articles qui correspondent : {}".format(arts_left_img))
+
+    if verbose > 0:
+        print(f"les ids des articles qui correspondent : {arts_left_img}")
+
     dico_id_artv_img = {ida: dicoa for ida, dicoa in dico_id_artv.items()
                         if ida in arts_left_img}
 
@@ -488,14 +496,18 @@ def FiltreArticles(dico_id_artv,
 
     # Filtering on the area of the text.
     diff = aire_tot_cart - aire_img_cart
-    print("L'aire du txt du carton : {}".format(diff))
+    if verbose > 0:
+        print("L'aire du txt du carton : {}".format(diff))
 
-    fcn = lambda x: ((1 - tol_area_text)*diff <  x[1][0][tot] - x[1][0][img] \
-                     < (1 - tol_area_text)*diff)
+    fcn = lambda x: ((1 - tol_area_text)*diff <=  x[1][0][tot] - x[1][0][img] \
+                     <= (1 + tol_area_text)*diff)
 
     list_items_dico_idartv = list(dico_id_artv_img.items())
     arts_left_txt = [ida for ida, _ in filter(fcn, list_items_dico_idartv)]
-    print("les ids des articles qui correspondent : {}".format(arts_left_txt))
+
+    if verbose > 0:
+        print(f"les ids des articles qui correspondent : {arts_left_txt}")
+
     dico_id_artv_txt = {ida: dicoa for ida, dicoa in dico_id_artv_img.items()
                         if ida in arts_left_txt}
 
@@ -505,11 +517,15 @@ def FiltreArticles(dico_id_artv,
         raise MyException(str_exc)
 
     # Filtering on the total area.
-    print("L'aire du carton : {}".format(aire_tot_cart))
-    fcn = lambda x: ((1 - tol_total_area)*aire_tot_cart < x[1][0][tot] \
-                     < (1 + tol_total_area)*aire_tot_cart)
+    if verbose > 0:
+        print("L'aire du carton : {}".format(aire_tot_cart))
+
+    fcn = lambda x: ((1 - tol_total_area)*aire_tot_cart <= x[1][0][tot] \
+                     <= (1 + tol_total_area)*aire_tot_cart)
     arts_left = [ida for ida, _ in filter(fcn, list(dico_id_artv_txt.items()))]
-    print("les ids des articles qui correspondent : {}".format(arts_left))
+
+    if verbose > 0:
+        print("les ids des articles qui correspondent : {}".format(arts_left))
 
     if len(arts_left) == 0:
         str_exc = 'No art. for that carton with the filter on the total area'
@@ -687,7 +703,8 @@ def SimpleLabels(liste_labels):
     return simpler_list
 
 
-def FiltreBlocs(dict_mdp_input, list_articles_input, dico_cartons, emp):
+def FiltreBlocs(dict_mdp_input, list_articles_input, dico_cartons,
+                emp, verbose):
     """
     Returns the articles whose blocks labels correspond to the ones of the
     modules.
@@ -710,6 +727,9 @@ def FiltreBlocs(dict_mdp_input, list_articles_input, dico_cartons, emp):
     emp: int
         The integer associated to the module (back to the function
         GetDicoCarton).
+
+    verbose: int
+        whether to print something or not.
 
     Raises
     ------
@@ -749,8 +769,11 @@ def FiltreBlocs(dict_mdp_input, list_articles_input, dico_cartons, emp):
                               for dicob in carton_found[id_carton]['blocs']]
         labels_art = SimpleLabels(blocs_label_art)
         labels_carton = SimpleLabels(blocs_label_carton)
-        print("Les labels simples des articles : {}".format(labels_art))
-        print("Les labels simples des cartons : {}\n".format(labels_carton))
+
+        if verbose > 0:
+            print(f"Les labels simples des articles : {labels_art}")
+            print(f"Les labels simples des cartons : {labels_carton}")
+
         # If all blocks of the article are also present in the carton, we can
         # place this article in that carton.
         if set(labels_art) <= set(labels_carton):
@@ -759,8 +782,17 @@ def FiltreBlocs(dict_mdp_input, list_articles_input, dico_cartons, emp):
     return liste_arts_poss
 
 
-def MethodeNaive(mdp_ref, X_nbImg, X_input, dico_id_artv, ind_features,
-                 dict_mdp_input, list_articles_input):
+def MethodeNaive(mdp_ref,
+                 X_nbImg,
+                 X_input,
+                 dico_id_artv,
+                 ind_features,
+                 dict_mdp_input,
+                 list_articles_input,
+                 tol_area_images_mod,
+                 tol_area_text_mod,
+                 tol_total_area_mod,
+                 verbose):
     """
 
     Returns the pages such that the articles has the best fit with the modules.
@@ -791,6 +823,21 @@ def MethodeNaive(mdp_ref, X_nbImg, X_input, dico_id_artv, ind_features,
     list_articles_input: list of dicts
         List with the dictionaries of the articles input.
 
+    tol_area_images_mod: float
+        The tolerance between the area of the images of the article and the
+        module. (advice: 0.5)
+
+    tol_area_text_mod: float
+        The tolerance between the area of the text of the article and the
+        module. (advice: 0.4)
+
+    tol_total_area_mod: float
+        The tolerance between the area of the article and of the module.
+        (advice: 0.3)
+
+    verbose: int >=0
+        If > 0, print intermediate results.
+
     Raises
     ------
     MyException
@@ -814,32 +861,32 @@ def MethodeNaive(mdp_ref, X_nbImg, X_input, dico_id_artv, ind_features,
     for emp, liste_art_poss in dico_possib_placements.items():
         # CORRESPONDANCE DES BLOCS
         args_filtre = [dict_mdp_input, list_articles_input, dico_cartons, emp]
-        liste_art_poss += FiltreBlocs(*args_filtre)
-        str_print = "The list of possible arts after the bloc filter"
-        print(str_print + " : {}".format(liste_art_poss))
+        liste_art_poss += FiltreBlocs(*args_filtre, verbose)
+
+        if verbose > 0:
+            str_print = "The list of possible arts after the bloc filter"
+            print(str_print + " : {}".format(liste_art_poss))
 
         # Pour chaque article, on regarde s'il est insérable à cet emplacement
         aire_img_carton = dico_cartons[emp]['aireImg']
-
-        # HUM, VOIR SI PAS MIEUX DE FAIRE AVEC ELTS DE OPTIONS. SI.
-        #aire_tot_carton = dico_cartons[emp]['width'] * dico_cartons[emp]['height']
-
         aire_tot_carton = dico_cartons[emp]['aireTot']
 
-        ## GROS CHANGEMENTS ICI
         ## CORRESPONDANCE ENTRE AIRE IMG, AIRE TXT, AIRE TOTALE
         args_filt = [dico_id_artv, aire_tot_carton, aire_img_carton]
-        args_filt += [ind_features]
+        args_filt += [ind_features, verbose, tol_area_images_mod]
+        args_filt += [tol_area_text_mod, tol_total_area_mod]
         try:
-            print("{:-^75}".format("FILTRE ART"))
-            print("L'aire des imgs de ce MDP : {}".format(aire_img_carton))
-            bornes = (.5 * aire_img_carton, 1.5 * aire_img_carton)
-            print("bornes : {} et {}".format(*bornes))
+            if verbose > 0:
+                print("{:-^75}".format("FILTRE ART"))
+                print("L'aire des imgs de ce MDP : {}".format(aire_img_carton))
+                bornes = (.5 * aire_img_carton, 1.5 * aire_img_carton)
+                print("bornes : {} et {}".format(*bornes))
             liste_art_poss += FiltreArticles(*args_filt)
         except Exception as e:
             first_item = list(dico_id_artv.items())[0]
             str_exc = "Error with FiltreArticles : {}\n".format(e)
             str_exc += "ind_features: {}\n".format(ind_features)
+            str_exc += "verbose: {}\n".format(verbose)
             str_exc += "aire_tot_carton: {}.\n".format(aire_tot_carton)
             str_exc += "aire_img_carton: {}.\n".format(aire_img_carton)
             str_exc += "extrait de dico_id_artv: {}".format(first_item)

@@ -75,9 +75,8 @@ def OpeningArticle(file_path_article):
     art_soup = soup.find('article')
 
     if art_soup is None:
-        print("art_soup is None")
         str_exc = (f"propositions:ExtractDicoArtInput: No art. in that file."
-                   f"file_path:\n{file_path_article}")
+                   f"file_path:\n{file_path_article}.\n art_soup is None.")
         raise MyException(str_exc)
 
     return art_soup, soup
@@ -133,10 +132,8 @@ def ExtractDicoArtInput(file_path):
             width, height = width_bal.text, height_bal.text
             try:
                 aire_img += int(width)*int(height) / 10000
-            except Exception as e:
-                print("Error with width and height: {}".format(e))
-                print("width", width, "type(width)", type(width))
-                print("height", height, "type(height)", type(height))
+            except:
+                pass
 
     try:
         sup_title = CleanBal(art_soup.find('suptitle').text)
@@ -390,9 +387,11 @@ def ExtractCatName(file_path):
                        f"An error while opening the file: {e} \n"
                        f"The path of the file: {str(file_path)}.")
             raise MyException(str_exc)
-        content = "".join(content)
-        soup = BeautifulSoup(content, "lxml")
+
+    content = "".join(content)
+    soup = BeautifulSoup(content, "lxml")
     print_category_soup = soup.find('printcategory')
+
     return print_category_soup.find('name').text
 
 
@@ -477,16 +476,20 @@ def TrouveMDPSim(list_mdp_data, mdp_input):
                                f"mdp: {mdp}.\nj: {j}, i: {i} \n"
                                f"mdp_input:\n{mdp_input}")
                     raise MyException(str_exc)
+
         if nb_correspondances == n:
             mdp_trouve.append((nb_pages, mdp, liste_ids))
+
     if len(mdp_trouve) == 0:
         stc_exc = "No correspondance found for that MDP:\n{}\n in the BDD."
         raise MyException(stc_exc.format(mdp_input))
+
     mdp_trouve.sort(key=itemgetter(0), reverse=True)
+
     return mdp_trouve
 
 
-def ExtractionDataInput(rep_data):
+def ExtractionDataInput(rep_data, verbose):
     """
     Extraction the data in the archive. The archive once dezipped must be of
     the form:
@@ -517,7 +520,10 @@ def ExtractionDataInput(rep_data):
     list_articles = []
     # Extraction des articles
     rep_articles = rep_data + '/' + 'articles'
-    print(f"For the articles, we search into: {rep_articles}")
+
+    if verbose > 0:
+        print(f"For the articles, we search into: {rep_articles}")
+
     for file_path in Path(rep_articles).glob('*.xml'):
         try:
             dict_vector_input = ExtractDicoArtInput(file_path)
@@ -525,12 +531,15 @@ def ExtractionDataInput(rep_data):
         except Exception as e:
             str_exc = (f"Error in propositions:ExtractionDataInput \n"
                        f"{e}.\n The path of the file: {file_path}.")
-            print(str_exc)
+            raise MyException(str_exc)
 
     # Extraction du MDP
     dico_mdps = {}
     rep_mdp = rep_data + '/' + 'pageTemplate'
-    print(f"For the templates, we search into: {rep_mdp}")
+
+    if verbose > 0:
+        print(f"For the templates, we search into: {rep_mdp}")
+
     for file_path in Path(rep_mdp).glob('*.xml'):
         dico_one_mdp = ExtractMDP(file_path)
         id_mdp = list(dico_one_mdp.keys())[0]
@@ -539,16 +548,20 @@ def ExtractionDataInput(rep_data):
     # Extraction de la rubrique
     list_rub = []
     rep_rub = rep_data + '/' + 'printCategory'
-    print(f"For the rubric, we search into: {rep_rub}")
+
+    if verbose > 0:
+        print(f"For the rubric, we search into: {rep_rub}")
+
     for file_path in Path(rep_rub).glob('*.xml'):
         list_rub.append(ExtractCatName(file_path))
 
     # Verification of the rubric
     if len(list_rub) > 1:
-        print(f"len(list_rub): {len(list_rub)}. There should be only one")
-        print(f"rubric. content: \n {list_rub}\n")
         rubric_out = list_rub[0]
-        print(f"The rubric chosen: {rubric_out}")
+        if verbose > 0:
+            print(f"len(list_rub): {len(list_rub)}. There should be only one")
+            print(f"rubric. content: \n {list_rub}\n")
+            print(f"The rubric chosen: {rubric_out}")
     elif len(list_rub) == 0:
         rubric_out = "None"
     else:
@@ -673,6 +686,7 @@ def ProposalsWithScore(dict_mlv_filtered):
         str_exc += "a {}".format(type(dict_mlv_filtered))
         str_exc += "dict_mlv_filtered: {}".format(dict_mlv_filtered)
         raise MyException(str_exc)
+
     dict_id_score = {}
     for i, list_score_id in enumerate(dict_mlv_filtered.values()):
         for score, id_art in list_score_id:
@@ -680,12 +694,15 @@ def ProposalsWithScore(dict_mlv_filtered):
                 dict_id_score[id_art] = [(score, i)]
             else:
                 dict_id_score[id_art].append((score, i))
+
     dict_emp_score = {}
     for emp, values in dict_mlv_filtered.items():
         dict_emp_score[emp] = [val[1] for val in values]
+
     # On constitue la liste avec toutes les possibilités de ventilations
     l_args = [emp_poss for emp_poss in dict_emp_score.values()]
     every_possib = methods.ProductList(*l_args)
+
     # Calcul du score, on le rajoute à chaque possib
     liste_possib_score = []
     for possib in every_possib:
@@ -697,10 +714,14 @@ def ProposalsWithScore(dict_mlv_filtered):
                 score_emp_art = list(filter(f, list_score_numemp))[0][0]
                 score += score_emp_art
             except Exception as e:
-                args_fmt = [e, art_possib, dict_id_score[art_possib]]
-                print("{}\n art_possib {}\n res du dico {}".format(*args_fmt))
+                fmt = [e, art_possib, dict_id_score[art_possib]]
+                str_exc = "{}\n art_possib {}\n res du dico {}".format(*fmt)
+                raise MyException(str_exc)
+        # Add the tuple with the page score and the tuple with articles ids.
         liste_possib_score.append((score, possib))
+
     liste_possib_score.sort(key=itemgetter(0), reverse=True)
+
     return liste_possib_score[:3]
 
 
@@ -745,7 +766,7 @@ def CreateListeProposalsPage(dict_global_results, mdp_INPUT):
     return liste_page_created
 
 
-def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features):
+def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features, verbose):
     """
     The filtering is made on the score and on the differences between articles
     weighted by the areas of the articles.
@@ -761,6 +782,9 @@ def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features):
     ind_features: list of strings
         ['nbSign', 'aireTot', 'aireImg'].
 
+    verbose: int
+        If verbose == 0, we don't print anything, else we print.
+
     Raises
     ------
     MyException
@@ -772,34 +796,28 @@ def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features):
         [(score, (id1, id2)), (score, (id1, id2)), (score, (id1, id2))].
 
     """
-    # D'abord, on commence par extraire toutes les propositions avec 3
-    # ventilations
-    # Utiliser qch du style ProductList
+    # Creation of a list of tuples with 3 pages.
     list_triplets = [(vent1, vent2, vent3) for vent1 in vents_uniq
                      for vent2 in vents_uniq if vent2 != vent1
                      for vent3 in vents_uniq if vent3 != vent2]
-    # Maintenant il faut ajouter le score total de pertinence et le score
-    # d'éloignement
+
+    # Computation of the weights of each article.
     try:
         poids = [dico_id_artv[ida][0][ind_features[1]]
                  for ida in vents_uniq[0][1]]
-        print("Les poids: {}".format(poids))
         length_vect = len(dico_id_artv[list(dico_id_artv.keys())[0]][0])
-        # IL FAUT LES NORMALISER
+        # Normalisation of the weights
         norm_weights = []
         for i in range(len(poids)):
             norm_weights += [poids[i]] * length_vect
         norm_weights = norm_weights / sum(norm_weights)
-        # print('The norm_weights obtained: {}'.format(norm_weights))
     except Exception as e:
         str_exc = "Error with the weights: {}\n".format(e)
         str_exc += "dico_id_artv: {}\n".format(dico_id_artv)
         str_exc += "ind_features: {}\n".format(ind_features)
         str_exc += "vents_uniq: {}".format(vents_uniq)
         raise MyException(str_exc)
-    # ICI IL FAUT FAIRE UN CALCUL DE DISTANCE PROPRE
-    # EXTRACTION DES VECTEURS ARTICLE
-    # CONCATENATION VECTEUR PAGE
+
     list_triplets_vect = []
     for triplet in list_triplets:
         triplet_prop = []
@@ -814,6 +832,7 @@ def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features):
                 raise MyException(str_exc)
             triplet_prop.append(vect_page)
         list_triplets_vect.append(triplet_prop)
+
     weighted_list_triplets = []
     for triplet, triplet_vect in zip(list_triplets, list_triplets_vect):
         score_total = sum([vent[0] for vent in triplet])
@@ -841,19 +860,27 @@ def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features):
             dist_pages = np.sqrt(np.dot(diff_vect, diff_vect.T))
             score_far += int(dist_pages)
         weighted_list_triplets.append((score_total, score_far, triplet))
-    print("{:-^75}".format("WEIGHTED LIST TRIPLETS"))
-    print("{:<15} {:^15} {:>25}".format("score total", "score far", "triplet"))
-    for i, (sc_tot, sc_far, triplet) in enumerate(weighted_list_triplets):
-        print("{:<15} {:^15} {:>25}".format(str(sc_tot), str(sc_far), str(triplet)))
-        if i == 3: break
-    print("{:-^75}".format("END WEIGHTED LIST TRIPLETS"))
+
+    if verbose > 0:
+        print("{:-^75}".format("WEIGHTED LIST TRIPLETS"))
+        print("{:<15} {:^15} {:>25}".format("score total", "score far", "triplet"))
+        for i, (sc_tot, sc_far, triplet) in enumerate(weighted_list_triplets):
+            print("{:<15} {:^15} {:>25}".format(str(sc_tot), str(sc_far), str(triplet)))
+            if i == 3:
+                break
+        print("{:-^75}".format("END WEIGHTED LIST TRIPLETS"))
+
     # triplet = [(88176, (32234, 28797)), (sc, (id, id)), (sc, (id, id))]
     f = lambda x: (x[0] - x[1] * 1500, x[2])
     one_score_triplet = [f(x) for x in weighted_list_triplets]
     one_score_triplet.sort(key=itemgetter(0))
     best_prop = one_score_triplet[0]
-    print("What is returned by SelectionProposalsNaive : ")
-    for elt in best_prop[1]: print(elt)
+
+    if verbose > 0:
+        print("What is returned by SelectionProposalsNaive : ")
+        for elt in best_prop[1]:
+            print(elt)
+
     return best_prop[1]
 
 
@@ -997,7 +1024,10 @@ def ExtractAndComputeProposals(dico_bdd,
                                path_data_input,
                                file_out,
                                list_features,
-                               verbose=2):
+                               tol_area_images_mod,
+                               tol_area_text_mod,
+                               tol_total_area_mod,
+                               verbose):
     """
 
     Steps of the function:
@@ -1026,6 +1056,18 @@ def ExtractAndComputeProposals(dico_bdd,
     list_features: list of strings
         The list with the features used to create the vectors article/page.
 
+    tol_area_images_mod: float
+        The tolerance between the area of the images of the article and the
+        module. (advice: 0.5)
+
+    tol_area_text_mod: float
+        The tolerance between the area of the text of the article and the
+        module. (advice: 0.4)
+
+    tol_total_area_mod: float
+        The tolerance between the area of the article and of the module.
+        (advice: 0.3)
+
     verbose: int
         Whether to print info on what is going on. (default=2)
 
@@ -1039,18 +1081,23 @@ def ExtractAndComputeProposals(dico_bdd,
     # Indexes of nbSign, nbPhoto, aireImg for the function FiltreArticles.
     list_to_index = ['nbSign', 'aireTot', 'aireImg']
     ind_features = [list_features.index(x) for x in list_to_index]
-    print("The path_data_input: {}".format(path_data_input))
 
-    # mdp_INPUT: dict (id_mdp: dict_mdp), rub_INPUT: list of strings
-    list_arts_INPUT, mdp_INPUT, rub_INPUT = ExtractionDataInput(path_data_input)
+    if verbose > 0:
+        print("The path_data_input: {}".format(path_data_input))
+
+    # mdp_INPUT is a dict (id_mdp: dict_mdp)
+    # rub_INPUT is a list of strings
+    args_ex = [path_data_input, verbose]
+    list_arts_INPUT, mdp_INPUT, rub_INPUT = ExtractionDataInput(*args_ex)
 
     # Shows how the object mdp_INPUT looks like
-    ShowsWhatsInMDP(mdp_INPUT)
+    if verbose > 0:
+        ShowsWhatsInMDP(mdp_INPUT)
 
     big_x, dico_id_artv = GetXInput(list_arts_INPUT, list_features)
     # L'obtention du dico_arts_rub_X est une étape important
     # Visualisation des résultats
-    if verbose > 1:
+    if verbose > 0:
         ShowsXDictidartv(big_x, dico_id_artv, list_features)
 
     dict_global_results = {}
@@ -1075,7 +1122,8 @@ def ExtractAndComputeProposals(dico_bdd,
             str_info = 'Less than {} pages with '.format(min_nb_art)
             str_info += '{} arts in the database'.format(nb_art)
             correspondance = False
-            print(str_info)
+            if verbose > 0:
+                print(str_info)
         else:
             try:
                 res_found = TrouveMDPSim(liste_tuple_mdp, mdp_loop)
@@ -1084,53 +1132,60 @@ def ExtractAndComputeProposals(dico_bdd,
             except Exception as e:
                 mdp_ref = mdp_loop
                 correspondance = False
-                str_prt = "An exception occurs while searching"
-                print(str_prt + " for correspdces: ", e)
+                if verbose > 0:
+                    str_prt = "An exception occurs while searching"
+                    print(str_prt + " for correspdces: ", e)
 
         # Method NAIVE
         X_input = big_x
-        args_naive = [mdp_ref, X_nbImg, X_input, dico_id_artv]
-        args_naive += [ind_features, dict_mdp_input, list_arts_INPUT]
+        args_naive = [mdp_ref, X_nbImg, X_input, dico_id_artv, ind_features]
+        args_naive += [dict_mdp_input, list_arts_INPUT, tol_area_images_mod]
+        args_naive += [tol_area_text_mod, tol_total_area_mod, verbose]
+
         try:
             dico_pos_naive, vents_uniq = methods.MethodeNaive(*args_naive)
         except Exception as e:
-            print("\nError Method Naive: {}".format(e))
-            print("All the arguments of methods.MethodeNaive: ")
-            print(f"mdp_ref: \n{mdp_ref}\n")
-            print(f"X_nbImg: \n{X_nbImg}\n")
-            print(f"X_input: \n{X_input}\n")
-            print(f"dico_id_artv: \n{dico_id_artv}\n")
-            print(f"ind_features: \n{ind_features}\n")
-            print(f"dict_mdp_input: \n{dict_mdp_input}\n")
-            print(f"list_arts_INPUT: \n{list_arts_INPUT}\n\n\n")
-            print("{:-^80}".format("END ARGUMENTS METHOD NAIVE"))
+            if verbose > 0:
+                print("\nError Method Naive: {}".format(e))
+                print("All the arguments of methods.MethodeNaive: ")
+                print(f"mdp_ref: \n{mdp_ref}\n")
+                print(f"X_nbImg: \n{X_nbImg}\n")
+                print(f"X_input: \n{X_input}\n")
+                print(f"dico_id_artv: \n{dico_id_artv}\n")
+                print(f"ind_features: \n{ind_features}\n")
+                print(f"dict_mdp_input: \n{dict_mdp_input}\n")
+                print(f"list_arts_INPUT: \n{list_arts_INPUT}\n\n\n")
+                print("{:-^80}".format("END ARGUMENTS METHOD NAIVE"))
             continue
 
         # Verification of vents_uniq
         if len(vents_uniq) == 0:
-            str_prt = "When we delete duplicates of the naive method, "
-            str_prt += "there is nothing left."
-            print(str_prt)
+            if verbose > 0:
+                str_prt = "When we delete duplicates of the naive method, "
+                str_prt += "there is nothing left."
+                print(str_prt)
             continue
 
         # Affichage Results naive
-        if verbose > 1:
+        if verbose > 0:
             ShowsResultsNAIVE(dico_pos_naive)
 
         # Case where we have data about the layout input
         if correspondance == True:
             # Method MLV
-            print("{:-^75}".format("CORRESPONDANCE FOUND"))
+            if verbose > 0:
+                print("{:-^75}".format("CORRESPONDANCE FOUND"))
             args_mlv = [dico_bdd, liste_ids_found, mdp_ref, X_input]
             args_mlv += [dico_id_artv, list_features]
             try:
                 dico_possi_mlv = methods.MethodeMLV(*args_mlv)
             except Exception as e:
-                print("Error with MethodeMLV: {}".format(e))
+                if verbose > 0:
+                    print("Error with MethodeMLV: {}".format(e))
                 continue
 
             # Print the possibilities of the mthod MLV
-            if verbose > 1:
+            if verbose > 0:
                 ShowsResultsMLV(dico_possi_mlv)
 
             # We use the dict result of the method NAIVE to filter results
@@ -1138,19 +1193,24 @@ def ExtractAndComputeProposals(dico_bdd,
             try:
                 dict_mlv_filtered = methods.ResultsFiltered(*args_filt)
             except Exception as e:
-                print("Error with ResultsFiltered: {}".format(e))
+                if verbose > 0:
+                    print("Error with ResultsFiltered: {}".format(e))
                 # Case where the mlv method didn't find anything, but the
                 # naive method did find some possibilities.
                 args_sel = [vents_uniq, dico_id_artv, ind_features]
                 first_results = SelectionProposalsNaive(*args_sel)
-                print("{:*^75}".format("NAIVE BIS"))
-                for elt in first_results: print(elt)
-                print("{:*^75}".format("END NAIVE BIS"))
+
+                if verbose > 0:
+                    print("{:*^75}".format("NAIVE BIS"))
+                    for elt in first_results:
+                        print(elt)
+                    print("{:*^75}".format("END NAIVE BIS"))
+
                 dict_global_results[id_mdp][rub_INPUT] = first_results
                 continue
 
             # Shows results of the filtering
-            if verbose > 1:
+            if verbose > 0:
                 ShowsResultsFilteringMLV(dict_mlv_filtered)
 
             # Génération des objets avec toutes les pages possibles,
@@ -1159,29 +1219,36 @@ def ExtractAndComputeProposals(dico_bdd,
             dict_global_results[id_mdp][rub_INPUT] = first_results
 
             # Print the 3 best results
-            if verbose > 1:
+            if verbose > 0:
                 Shows3bestResults(first_results)
 
         # Dans le cas où le MDP INPUT n'est pas dans la BDD
         else:
-            print("{:-^75}".format("NO CORRESPONDANCE FOUND"))
-            # On parcourt le(s) MDP INPUT, on applique la méthode naïve
-            # sur les articles INPUT et ce MDP
-            print("{:*^75}".format("VENTS UNIQUE"))
-            for elt in vents_uniq:
-                print(elt)
-            print("{:-^75}".format("END VENTS UNIQUE"))
+            if verbose > 0:
+                print("{:-^75}".format("NO CORRESPONDANCE FOUND"))
+                # On parcourt le(s) MDP INPUT, on applique la méthode naïve
+                # sur les articles INPUT et ce MDP
+                print("{:*^75}".format("VENTS UNIQUE"))
+                for elt in vents_uniq:
+                    print(elt)
+                print("{:-^75}".format("END VENTS UNIQUE"))
 
             args_sel = [vents_uniq, dico_id_artv, ind_features]
             first_results = SelectionProposalsNaive(*args_sel)
-            print("{:*^75}".format("FIRST RES"))
-            for elt in first_results:
-                print(elt)
-            print("{:*^75}".format("END FIRST RES"))
+
+            if verbose > 0:
+                print("{:*^75}".format("FIRST RES"))
+                for elt in first_results:
+                    print(elt)
+                print("{:*^75}".format("END FIRST RES"))
+
             dict_global_results[id_mdp][rub_INPUT] = first_results
 
     list_created_pg = CreateListeProposalsPage(dict_global_results, mdp_INPUT)
-    print("The list of page created: {}".format(list_created_pg))
+
+    if verbose > 0:
+        print("The list of page created: {}".format(list_created_pg))
+
     # Writing of the output file with the results
     CreateXmlPageProposals(list_created_pg, file_out)
 
