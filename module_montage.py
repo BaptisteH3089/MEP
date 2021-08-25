@@ -17,9 +17,10 @@ def Creationxml(statut, file_out):
 
     Parameters
     ----------
-    statut : str
+    statut: str
         Just some text.
-    file_out : str
+
+    file_out: str
         Where we want to create the xml file.
 
     Returns
@@ -42,9 +43,10 @@ def CompareTwoLayouts(layout1, layout2, tol=20):
 
     Parameters
     ----------
-    layout1 : numpy array
+    layout1: numpy array
         np.array([[x, y, w, h], [x, y, w, h], ...]).
-    layout2 : numpy array
+
+    layout2: numpy array
         np.array([[x, y, w, h], [x, y, w, h], ...]).
 
     Returns

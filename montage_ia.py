@@ -94,7 +94,8 @@ param = {'path_log': config.get('LOG', 'path_log'),
                                                'tol_area_text_mod')),
          'tol_total_area_mod': float(config.get('CONSTRAINTS',
                                                 'tol_total_area_mod')),
-         'verbose': int(config.get('VERBOSE', 'verbose'))}
+         'verbose': int(config.get('VERBOSE', 'verbose')),
+         'coef_var': float(config.get('OPTIMIZATION', 'coef_var'))}
 
 
 # LOGGER
@@ -311,7 +312,7 @@ class GetLayout(Resource):
                 print("{:-^80}\n".format(""))
             args_lay = [dict_pages, list_mdp, path_data_input, file_out]
             args_lay += [list_features, tol_area_images_mod, tol_area_text_mod]
-            args_lay += [tol_total_area_mod, verbose]
+            args_lay += [tol_total_area_mod, param['coef_var'], verbose]
             propositions.ExtractAndComputeProposals(*args_lay)
 
         # Case where we must choose a layout
@@ -323,7 +324,7 @@ class GetLayout(Resource):
             args_nolay = [path_data_input, file_out, dict_pages, dict_arts]
             args_nolay += [list_mdp, dict_gbc, dict_layouts, list_features]
             args_nolay += [param['tol_total_area'], param['tol_nb_images']]
-            args_nolay += [param['tol_score_min']]
+            args_nolay += [param['tol_score_min'], param['coef_var']]
             without_layout.FinalResultsMethodNoLayout(*args_nolay, verbose)
 
         logger.info('End of GET')

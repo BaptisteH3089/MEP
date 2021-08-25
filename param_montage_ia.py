@@ -30,9 +30,14 @@ list_features: ["nbSign", "nbBlock", "abstract", "syn", "exergue",
                 "aireImg", "aireTot", "petittitre", "quest_rep", "intertitre"]
 
 [CONSTRAINTS]
+# Constraints for the layouts
 tol_total_area: 0.08
 tol_nb_images: 1
 tol_score_min: 0.2
+# Constraints for the modules
+tol_area_images_mod: 0.5
+tol_area_text_mod: 0.4
+tol_total_area_mod: 0.3
 
 [VERBOSE]
 verbose: 0

@@ -18,7 +18,23 @@ import pickle
 import numpy as np
 
 
-def CreationDictPageArray(dict_pages, path_customer, save_dict=True):
+def CreationDictPageArray(dict_pages, path_customer):
+    """
+    Create the dict_page_array.
+
+    Parameters
+    ----------
+    dict_pages: dict
+        The dict with all the pages.
+
+    path_customer: str
+        The path to the data of a customer.
+
+    Returns
+    -------
+    None.
+
+    """
     feat_module = ['x', 'y', 'width', 'height']
     dict_page_array = {}
     for id_page, dicop in dict_pages.items():
@@ -26,7 +42,7 @@ def CreationDictPageArray(dict_pages, path_customer, save_dict=True):
         for dicoa in dicop['articles'].values():
             modules_page.append([dicoa[x] for x in feat_module])
         dict_page_array[id_page] = np.array(modules_page)
-    # Check if this is OK
+    # Check if everything's OK
     s = 0
     print("{:-^80}".format("Visualisation of the results"))
     for idp, arrayp in dict_page_array.items():
@@ -36,6 +52,5 @@ def CreationDictPageArray(dict_pages, path_customer, save_dict=True):
             break
         s += 1
     # Save the dict
-    if save_dict:
-        with open(path_customer + 'dict_page_array', 'wb') as f:
-            pickle.dump(dict_page_array, f)
+    with open(path_customer + 'dict_page_array', 'wb') as f:
+        pickle.dump(dict_page_array, f)

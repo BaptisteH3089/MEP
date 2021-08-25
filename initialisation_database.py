@@ -14,6 +14,8 @@ of page for a given client. It creates the following objects:
     - dict_page_array_fast
     - dict_layouts
 
+The script lasts 1 hour.
+
 """
 import pickle
 import argparse

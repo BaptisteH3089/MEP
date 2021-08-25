@@ -687,7 +687,7 @@ def CreationListVectorsPageFromFiles(final_obj, artd_input, list_feat):
     return list_vect_page
 
 
-def SelectBestTriplet(all_triplets, list_features, verbose):
+def SelectBestTriplet(all_triplets, list_features, coef_var, verbose):
     """
     Used in the method with files.
     Computation of the variance of a proposition and then the final score of a
@@ -700,6 +700,10 @@ def SelectBestTriplet(all_triplets, list_features, verbose):
 
     list_features: list of strings
         The list with the features used to create the vectors page.
+
+    coef_var: float (between 0 and 1)
+        The importance we give to the variance with respect to the score of
+        fit. The closer to one, the more important.
 
     verbose: int >= 0
         If verbose > 0, print info.
@@ -864,7 +868,7 @@ def ShowsBestTriplet(best_triplet):
 
 
 def SelectBestTripletAllNumbers(all_triplets, global_mean_vect,
-                                global_vect_std, verbose):
+                                global_vect_std, coef_var, verbose):
     """
     Computation of the variance of a proposition and then the final score of a
     triplet.
@@ -882,6 +886,10 @@ def SelectBestTripletAllNumbers(all_triplets, global_mean_vect,
 
     global_vect_std: numpy array
         Vector of the same mength as the short_vect_page with the stds.
+
+    coef_var: float (between 0 and 1)
+        The importance we give to the variance with respect to the score of
+        fit. The closer to one, the more important.
 
     verbose: int >= 0
         If verbose > 0, print info.
@@ -927,12 +935,15 @@ def SelectBestTripletAllNumbers(all_triplets, global_mean_vect,
 
     if np.isclose(std_var, 0):
         std_var = 1
+
     norm_vect_var = (vect_var - mean_var)/std_var
+
     all_triplets_scores = []
     for triplet, var in zip(all_triplets, norm_vect_var):
         score_prop = sum((sc for sc, _, _ in triplet))
         # We ponderate the variance by 0.5
-        all_triplets_scores.append((score_prop + 0.5*var, triplet))
+        all_triplets_scores.append((score_prop + coef_var*var, triplet))
+
     # Ultimately, we take the triplet with the best score
     all_triplets_scores.sort(key=itemgetter(0), reverse=True)
     best_triplet = all_triplets_scores[0]
@@ -1069,6 +1080,7 @@ def ProposalsWithoutGivenLayout(file_in,
                                 tol_total_area,
                                 tol_nb_images,
                                 tol_score_min,
+                                coef_var,
                                 verbose):
     """
     Parameters
@@ -1106,6 +1118,10 @@ def ProposalsWithoutGivenLayout(file_in,
     tol_score_min: float (between 0 and 1, default: 0.2)
         The min score of the articles in the page.
 
+    coef_var: float (between 0 and 1)
+        The importance we give to the variance with respect to the score of
+        fit. The closer to one, the more important.
+
     verbose: int
         Whether to print something or not.
 
@@ -1116,16 +1132,21 @@ def ProposalsWithoutGivenLayout(file_in,
         triplet = [(sc_page, label_page, array_page), (), ()]
 
     """
+    dict_system = {}
     start_time = time.time()
     dict_arts_input = CreationDDArt(file_in)
     dur = time.time() - start_time
+    dict_system['duration_extraction_inputs_lay'] = dur
+
     if verbose > 0:
         print("Duration loading input: {:*^12.2f} sec.".format(dur))
 
     # Here, I can build the matrices X (concatenation art), Y (scores)
     # The point is to use the model to predict the score
+    t0 = time.time()
     args_sc = [dict_pages, list_features, dict_arts_input, verbose]
     dict_arts_input = AttributesScoresToArticlesInput(*args_sc)
+    dict_system['duration_attribution_score_lay'] = time.time() - t0
 
     big_list_sc_label_vectsh = []
     list_vectsh_ids = []
@@ -1143,6 +1164,7 @@ def ProposalsWithoutGivenLayout(file_in,
         # The list all_ntuples corresponds to all nb_arts-tuple possible
         all_ntuples = GenerationAllNTupleFromFiles(dict_arts_input, nb_arts,
                                                    verbose)
+        dict_system['number_tuples_' + str(nb_arts)] = len(all_ntuples)
 
         # The set set_ids_page is made of list of ids that respect the basic
         # constraints of a page
@@ -1151,15 +1173,19 @@ def ProposalsWithoutGivenLayout(file_in,
                                                        tol_nb_images,
                                                        tol_score_min,
                                                        verbose)
+        dict_system['number_tuples_constraints_' + str(nb_arts)] = len(set_ids_page)
+
         if len(set_ids_page) == 0:
             if verbose > 0:
-                print("As there are no possibilities, we go to the next number.")
+                print("As there are no possibilities, we go to the next nb.")
             continue
 
         # All the short vectors page. For now it is vectors of size 15 which
         # are the sum of all vectors articles in the page
+        t0 = time.time()
         args_fill = [set_ids_page, list_features, dict_arts_input]
         list_short_vect_page = FillShortVectorPage(*args_fill)
+        dict_system['duration_short_vectors'] = time.time() - t0
 
         # We add the couple (sh_vect, ids) to all_list_couples_sh_vect_ids.
         # This will be used to find back the ids of the articles which form
@@ -1168,21 +1194,27 @@ def ProposalsWithoutGivenLayout(file_in,
             list_vectsh_ids.append((short_vect, ids_page))
 
         # But I also need the long vectors page for the predictions
+        t0 = time.time()
         args_files = [set_ids_page, dict_arts_input, list_features]
         list_long_vect_page = CreationListVectorsPageFromFiles(*args_files)
+        dict_system['duration_long_vectors'] = time.time() - t0
 
         if len(list_long_vect_page) == 0:
             continue
 
         # Now, I train the model. Well, first the matrices
+        t0 = time.time()
         nb_pgmin = 20
         args_cr = [dict_pages, dict_arts, list_mdp_data, nb_arts, nb_pgmin]
         X, Y, dict_labels = CreateXYFromScratch(*args_cr, list_features, verbose)
+        dict_system['duration_XY'] = time.time() - t0
+
 
         t_model = time.time()
         args_pr = [X, Y, list_long_vect_page, dict_gbc[nb_arts], verbose]
         preds_gbc = PredsModel(*args_pr)
         d_mod = time.time() - t_model
+        dict_system['duration_preds'] = d_mod
 
         if verbose > 0:
             str_prt = f"Duration model {nb_arts} articles"
@@ -1204,6 +1236,8 @@ def ProposalsWithoutGivenLayout(file_in,
             print("{} {:*^12.2f} sec.".format(str_prt, time.time() - t1))
             print("{:-^80}".format(""))
 
+        dict_system[f"duration_pages_{nb_arts}"] = time.time() - t1
+
     t2 = time.time()
     gbal_mean_vect, gbal_vect_std = GetMeanStdFromList(big_list_sc_label_vectsh)
     all_triplets = [[p1, p2, p3]
@@ -1211,14 +1245,19 @@ def ProposalsWithoutGivenLayout(file_in,
                     for j, p2 in enumerate(big_list_sc_label_vectsh[i + 1:])
                     for p3 in big_list_sc_label_vectsh[i + j + 2:]]
 
-    args_all_nb = [all_triplets, gbal_mean_vect, gbal_vect_std, verbose]
-    all_triplets_scores = SelectBestTripletAllNumbers(*args_all_nb)
+    args_all_nb = [all_triplets, gbal_mean_vect, gbal_vect_std, coef_var]
+    all_triplets_scores = SelectBestTripletAllNumbers(*args_all_nb, verbose)
 
     if verbose > 0:
         str_prt = "Duration computation scores triplet"
         print("{} {:*^12.2f} sec.".format(str_prt, time.time() - t2))
 
-    return all_triplets_scores, dd_labels, dict_arts_input, list_vectsh_ids
+    dict_system[f"duration_scores"] = time.time() - t2
+
+    main_results = [all_triplets_scores, dd_labels, dict_arts_input,
+                    list_vectsh_ids]
+
+    return main_results, dict_system
 
 
 def ShowResultsProWGLay(all_triplets_scores, dd_labels,
@@ -1318,7 +1357,7 @@ def FindLocationArticleInLayout(dico_bdd,
         args = [dico_bdd, liste_ids_found, mdp_ref, list_features]
         X, Y = methods.GetTrainableData(*args)
 
-        if verbose > 0:
+        if verbose > 1:
             print(f"The shape of X in FINDLOC: {X.shape}\n{X[0]}")
             print(f"The list of features used FINDLOC: {list_features}")
 
@@ -1375,7 +1414,7 @@ def FindLocationArticleInLayout(dico_bdd,
     return list_xmlout
 
 
-def CreateXmlOutNoLayout(list_xmlout, file_out):
+def CreateXmlOutNoLayout(list_xmlout, dict_system, file_out):
     """
     The function creates an xml of the form:
     <PagesLayout>
@@ -1388,12 +1427,16 @@ def CreateXmlOutNoLayout(list_xmlout, file_out):
 
     Parameters
     ----------
-    list_xmlou: list of dictionaries
+    list_xmlout: list of dictionaries
         [
         {(x, y, w, h): (id_art_1, ...), ..., idLayout: id or "None"},
         {...},
          ...
          ].
+
+    dict_system: dict
+        A dict with a few info about the functionning of the algo.
+
     file_out: str
         path/to/file/out.xml.
 
@@ -1402,6 +1445,51 @@ def CreateXmlOutNoLayout(list_xmlout, file_out):
     bool
     """
     PagesLayout = ET.Element("PagesLayout")
+
+    # Sytem
+    # duration
+    System = ET.SubElement(PagesLayout, "System")
+    dur_eil = str(round(dict_system['duration_extraction_inputs_lay'], 2))
+    dur_asl = str(round(dict_system['duration_attribution_score_lay'], 2))
+    dur_sv = str(round(dict_system['duration_short_vectors'], 2))
+    dur_lv = str(round(dict_system['duration_long_vectors'], 2))
+    dur_xy = str(round(dict_system['duration_XY'], 2))
+    dur_pre = str(round(dict_system['duration_preds'], 2))
+    dur_p2 = str(round(dict_system['duration_pages_2'], 2))
+    dur_p3 = str(round(dict_system['duration_pages_3'], 2))
+    dur_sco = str(round(dict_system['duration_scores'], 2))
+    dur_la = str(round(dict_system['duration_location_articles'], 2))
+    dur_fil = str(round(dict_system['duration_find_id_layout'], 2))
+    dur_tot = str(round(dict_system['total_duration'], 2))
+    # infos possibilities
+    nb_tup2 = str(dict_system['number_tuples_2'])
+    nb_tupcstr2 = str(dict_system['number_tuples_constraints_2'])
+    nb_tup3 = str(dict_system['number_tuples_3'])
+    nb_tupcstr3 = str(dict_system['number_tuples_constraints_3'])
+    nb_tup4 = str(dict_system['number_tuples_4'])
+    nb_tupcstr4 = str(dict_system['number_tuples_constraints_4'])
+
+    ET.SubElement(System, "TotalDuration").text = dur_tot
+    ET.SubElement(System, "DurationExtractionInputsLay").text = dur_eil
+    ET.SubElement(System, "duration_attribution_score_lay").text = dur_asl
+    ET.SubElement(System, "duration_short_vectors").text = dur_sv
+    ET.SubElement(System, "duration_long_vectors").text = dur_lv
+    ET.SubElement(System, "duration_XY").text = dur_xy
+    ET.SubElement(System, "duration_preds").text = dur_pre
+    ET.SubElement(System, "duration_pages_2").text = dur_p2
+    ET.SubElement(System, "duration_pages_3").text = dur_p3
+    ET.SubElement(System, "duration_scores").text = dur_sco
+    ET.SubElement(System, "duration_location_articles").text = dur_la
+    ET.SubElement(System, "duration_find_id_layout").text = dur_fil
+    ET.SubElement(System, "total_duration").text = dur_tot
+
+    ET.SubElement(System, "number_tuples_2").text = nb_tup2
+    ET.SubElement(System, "number_tuples_constraints_2").text = nb_tupcstr2
+    ET.SubElement(System, "number_tuples_3").text = nb_tup3
+    ET.SubElement(System, "number_tuples_constraints_3").text = nb_tupcstr3
+    ET.SubElement(System, "number_tuples_4").text = nb_tup4
+    ET.SubElement(System, "number_tuples_constraints_4").text = nb_tupcstr4
+
     for i, dico_page_result in enumerate(list_xmlout):
         PageLayout = ET.SubElement(PagesLayout, "PageLayout", name=str(i))
         PageLayout.set("idLayout", dico_page_result['idLayout'])
@@ -1415,6 +1503,7 @@ def CreateXmlOutNoLayout(list_xmlout, file_out):
                 Module.set("id_article", str(ida))
     tree = ET.ElementTree(PagesLayout)
     tree.write(file_out, encoding="UTF-8")
+
     return True
 
 
@@ -1429,8 +1518,13 @@ def FinalResultsMethodNoLayout(file_in,
                                tol_total_area,
                                tol_nb_images,
                                tol_score_min,
+                               coef_var,
                                verbose):
     """
+
+    Main function that enumerate the possibilities of pages from a list of
+    articles and use some methods to score the pages and rank them. Returns
+    the best 3 pages according to a criterion of scores and variance.
 
     Parameters
     ----------
@@ -1474,6 +1568,10 @@ def FinalResultsMethodNoLayout(file_in,
     tol_score_min: float (between 0 and 1, default: 0.2)
         The min score of the articles in a created page.
 
+    coef_var: float (between 0 and 1)
+        The importance we give to the variance with respect to the score of
+        fit. The closer to one, the more important.
+
     verbose: int
         Whether to print something
 
@@ -1486,7 +1584,8 @@ def FinalResultsMethodNoLayout(file_in,
     start_time = time.time()
     args = [file_in, file_out, dico_bdd, dict_arts, list_mdp_data, dict_gbc]
     args += [list_features, tol_total_area, tol_nb_images, tol_score_min]
-    res_proposals = ProposalsWithoutGivenLayout(*args, verbose)
+    args += [coef_var, verbose]
+    res_proposals, dict_system = ProposalsWithoutGivenLayout(*args)
     triplets_scores, dd_labels, dicta_input, list_vectsh_ids = res_proposals
 
     # Shows the results in the prompt and isolates the final ids of articles
@@ -1501,7 +1600,10 @@ def FinalResultsMethodNoLayout(file_in,
     if verbose > 0:
         print(f"Duration find location articles: {d_location:*^12.2f} sec.")
 
+    dict_system['duration_location_articles'] = d_location
+
     # Try to associate an id of layout to the layouts used.
+    t0 = time.time()
     for dict_page_result in list_xmlout:
         layout_output = [module for module in dict_page_result.keys()]
         array_layout_output = np.array(layout_output)
@@ -1510,7 +1612,7 @@ def FinalResultsMethodNoLayout(file_in,
         for id_layout_data, dicolay in dict_layouts.items():
             layout_data = dicolay['array']
             if layout_data.shape == array_layout_output.shape:
-                args = [array_layout_output, layout_data, 10]
+                args = [array_layout_output, layout_data, 20]
                 if module_montage.CompareTwoLayouts(*args):
                     # If match, we add the id of the layout
                     dict_page_result['idLayout'] = id_layout_data
@@ -1518,6 +1620,7 @@ def FinalResultsMethodNoLayout(file_in,
                     break
         if match is False:
             dict_page_result['idLayout'] = "None"
+    dict_system['duration_find_id_layout'] = time.time() - t0
 
     if verbose > 0:
         print(f"\nThe list_xmlout after addition of idLayout:\n")
@@ -1526,9 +1629,16 @@ def FinalResultsMethodNoLayout(file_in,
                 print(f"{key}: {val}")
             print("\n")
 
-    # Creates the xml output in the repository file_out
-    CreateXmlOutNoLayout(list_xmlout, file_out)
     tot_dur = time.time() - start_time
+    dict_system['total_duration'] = tot_dur
+
+    if verbose > 0:
+        print(f"The keys of the dict_system: {dict_system.keys()}")
+        for key, item in dict_system.items():
+            print(f"{key}: {item}")
+
+    # Creates the xml output in the repository file_out
+    CreateXmlOutNoLayout(list_xmlout, dict_system, file_out)
 
     if verbose > 0:
         print("{:-^80}".format("TOTAL DURATION - {:.2f} sec.".format(tot_dur)))

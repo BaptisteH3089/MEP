@@ -12,16 +12,29 @@ do faster searches. It is of the form:
 Objects necessary:
     - dict_page_array.
 
-The arguments of the script are:
-    - path_customer ('The path of the data.')
-    - --save_dict (default=True)
-
 """
 import pickle
 import itertools
 
 
-def CreationDictPageArrayFast(dict_page_array, path_customer, save_dict=True):
+def CreationDictPageArrayFast(dict_page_array, path_customer):
+    """
+    Create the dict_page_array_fast. We only gather layouts by their number
+    of modules.
+
+    Parameters
+    ----------
+    dict_page_array: dict
+        {id_page: array_page, ...}.
+
+    path_customer: str
+        Absolute path to the data.
+
+    Returns
+    -------
+    None.
+
+    """
     # Add the number of modules
     for key, value in dict_page_array.items():
         dict_page_array[key] = (value, len(value))
@@ -47,6 +60,5 @@ def CreationDictPageArrayFast(dict_page_array, path_customer, save_dict=True):
             if i == 0:
                 break
     # Save the dict.
-    if save_dict:
-        with open(path_customer + 'dict_page_array_fast', 'wb') as f:
-            pickle.dump(new_dict, f)
+    with open(path_customer + 'dict_page_array_fast', 'wb') as f:
+        pickle.dump(new_dict, f)

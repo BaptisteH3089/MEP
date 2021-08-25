@@ -12,7 +12,8 @@ from operator import itemgetter
 import xml.etree.cElementTree as ET
 import numpy as np
 import re
-import methods
+import time
+import methods # for the methodNaive
 
 
 # Classe pour écrire des exceptions personnalisées
@@ -26,7 +27,7 @@ def CleanBal(txt):
 
     Parameters
     ----------
-    txt : str
+    txt: str
         The text input.
 
     Returns
@@ -85,7 +86,11 @@ def OpeningArticle(file_path_article):
 def ExtractDicoArtInput(file_path):
     """
     Parsing of a xml file with an article.
-    aireTot = dico_block['originalheight'] * dico_block['originalwidth']
+
+    aireTot is the sum of the areas of the blocks:
+        - dico_block['originalheight'] * dico_block['originalwidth']
+
+    All the features supTitle, title, abstrat, ... are indicators functions.
 
     Parameters
     ----------
@@ -120,6 +125,7 @@ def ExtractDicoArtInput(file_path):
                              'aireTot': ...}.
     """
 
+    # Open and parse the file inptu
     art_soup, soup = OpeningArticle(file_path)
 
     dico_vector_input = {}
@@ -202,6 +208,8 @@ def ExtractDicoArtInput(file_path):
         except:
             dico_block['originaltop'] = -1
 
+        # Not sure about that. Maybe there can be several blocks superposed
+        # in the same location.
         aireTot += dico_block['originalheight'] * dico_block['originalwidth']
 
         if 'PHOTO' in dico_block['label']:
@@ -210,12 +218,16 @@ def ExtractDicoArtInput(file_path):
             dim_imgs.append((height_img, width_img))
             aire_img = height_img * width_img
             aire_imgs.append(aire_img)
+
         elif 'PETITTITRE' in dico_block['label']:
             petittitre_indicator = 1
+
         elif 'INTERTITRE' in dico_block['label']:
             intertitre_indicator = 1
+
         elif 'QUESTION' in dico_block['label']:
             quest_rep_indicator = 1
+
         elif 'REPONSE' in dico_block['label']:
             quest_rep_indicator = 1
 
@@ -252,7 +264,7 @@ def OpeningMDP(file_path_layout):
 
     Parameters
     ----------
-    file_path_layout : str
+    file_path_layout: str
         The absolute path to the file with the layout.
 
     Raises
@@ -262,7 +274,7 @@ def OpeningMDP(file_path_layout):
 
     Returns
     -------
-    soup : Beautifulsoup object
+    soup: Beautifulsoup object
         All the parsed content of the file.
 
     """
@@ -329,12 +341,14 @@ def ExtractMDP(file_path):
             dico_block['originalleft'] = int(float(str_left))
             dico_block['originaltop'] = int(float(str_top))
             aire_tot += height_bloc * width_bloc
+
             if 'PHOTO' in dico_block['label']:
                 height_img = dico_block['originalheight']
                 width_img = dico_block['originalwidth']
                 dim_imgs.append((height_img, width_img))
                 aire_img = height_img * width_img
                 aire_imgs.append(aire_img)
+
             liste_blocks.append(dico_block)
 
         id_carton = carton_soup.find('id').text
@@ -422,9 +436,12 @@ def GetXInput(liste_dico_vector_input, list_features):
 
     dico_id_artx = {}
     for i, d_vect_input in enumerate(liste_dico_vector_input):
+
+        # Convert into vectors
         args = [d_vect_input, list_features]
         id_art, vect_art = methods.GetVectorArticleInput(*args)
         dico_id_artx[id_art] = vect_art
+
         # Initialisation of the matrix big_x with the 1er article
         if i == 0:
             big_x = np.array(vect_art, ndmin=2)
@@ -432,6 +449,7 @@ def GetXInput(liste_dico_vector_input, list_features):
         else:
             x = np.array(vect_art, ndmin=2)
             big_x = np.concatenate((big_x, x))
+
     return big_x, dico_id_artx
 
 
@@ -599,7 +617,7 @@ def SelectionModelesPages(list_mdp, nb_art, nb_min_pages):
     return list(filter(f, list_mdp))
 
 
-def CreateXmlPageProposals(liste_page_created, file_out):
+def CreateXmlPageProposals(liste_page_created, file_out, dict_system):
     """
     Liste_page_created is of the form:
         [{MelodyId: X, printCategoryName: X, emp1: X, emp2: X, emp3: X}, ...]
@@ -632,13 +650,46 @@ def CreateXmlPageProposals(liste_page_created, file_out):
     file_out: str
         The repertory where we write the file.
 
+    dict_system: dict
+        Dict with some durations and the scores of the pages.
+
     Returns
     -------
     bool
         Just True if everything went well.
 
     """
+    # durations
+    dur_in = str(round(dict_system['duration_extraction_inputs'], 2))
+    dur_na = str(round(dict_system['duration_method_naive'], 2))
+    dur_ml = str(round(dict_system['duration_method_mlv'], 2))
+    dur_fi = str(round(dict_system['duration_filtering'], 2))
+    dur_at = str(round(dict_system['duration_attribution_score'], 2))
+    dur_ca = str(round(dict_system['duration_case_no_data'], 2))
+    dur_to = str(round(dict_system['total_duration'], 2))
+    # scores
+    score_glob = str(round(dict_system['score_global'], 2))
+    score_mod = str(round(dict_system['score_model'], 2))
+    var_triplet = str(round(dict_system['variance_triplet'], 2))
+
     PagesLayout = ET.Element("PagesLayout")
+    System = ET.SubElement(PagesLayout, "System")
+    ET.SubElement(System, "TotalDuration").text = dur_to
+    ET.SubElement(System, "DurationExtractionInputs").text = dur_in
+    ET.SubElement(System, "DurationMethodNaive").text = dur_na
+    ET.SubElement(System, "DurationMethodMlv").text = dur_ml
+    ET.SubElement(System, "DurationFiltering").text = dur_fi
+    ET.SubElement(System, "DurationAttributionScore").text = dur_at
+    ET.SubElement(System, "DurationCaseNoData").text = dur_ca
+    # Scores of the pages
+    ET.SubElement(System, "ScorePage0").text = str(dict_system['score_page_0'])
+    ET.SubElement(System, "ScorePage1").text = str(dict_system['score_page_1'])
+    ET.SubElement(System, "ScorePage2").text = str(dict_system['score_page_2'])
+    # Scores triplet
+    ET.SubElement(System, "ScoreGlobal").text = score_glob
+    ET.SubElement(System, "ScoreModel").text = score_mod
+    ET.SubElement(System, "VarianceStdTriplet").text = var_triplet
+
     for i, created_page in enumerate(liste_page_created):
         PageLayout = ET.SubElement(PagesLayout, "PageLayout", name=str(i))
         for key, value in created_page.items():
@@ -704,7 +755,7 @@ def ProposalsWithScore(dict_mlv_filtered):
     every_possib = methods.ProductList(*l_args)
 
     # Calcul du score, on le rajoute à chaque possib
-    liste_possib_score = []
+    list_possib_score = []
     for possib in every_possib:
         score = 0
         for i, art_possib in enumerate(possib):
@@ -718,11 +769,139 @@ def ProposalsWithScore(dict_mlv_filtered):
                 str_exc = "{}\n art_possib {}\n res du dico {}".format(*fmt)
                 raise MyException(str_exc)
         # Add the tuple with the page score and the tuple with articles ids.
-        liste_possib_score.append((score, possib))
+        list_possib_score.append((score, possib))
 
-    liste_possib_score.sort(key=itemgetter(0), reverse=True)
+    # list_possib_score.sort(key=itemgetter(0), reverse=True)
+    # Deletion pages with several times the same article
+    list_possib_score_clean = []
+    all_set_possib = []
+    for score, possib in list_possib_score:
+        set_possib = set(possib)
+        if len(possib) == len(set_possib):
+            if set_possib not in all_set_possib:
+                all_set_possib.append(set_possib)
+                list_possib_score_clean.append((score, possib))
 
-    return liste_possib_score[:3]
+    return list_possib_score_clean
+
+
+def VarianceCriteria(list_possib_score, dict_idartv, coef_var, verbose):
+    """
+    Select the triplet of pages with the best global score, that is the
+    combination between variance and predicted probas.
+
+    Parameters
+    ----------
+    list_possib_score: list of tuples
+        list_possib_score = [(score_page, (id_art1, id_art2, ...)), ...].
+
+    dict_idartv: dict
+        dict_idartv = {id_art: vect_art, ...}.
+
+    coef_var: float (between 0 and 1)
+        The importance given to the variance. The closer to 1 the more imp.
+
+    verbose: int
+        If verbose > 0, print infos.
+
+    Returns
+    -------
+    triplet_out: list of tuples
+        triplet_out = [(score, (id_1, id_2, id_3, ...)), ...].
+
+    """
+    # HERE, instead of just using the score, I should solve the optimization
+    # program
+    # list_possib_score = [(score, (id1, id2, ...)), ...]
+    #
+    # 1. For each possibility, we concatenate the vectors article to create a
+    # vector page
+    # 2. We enumerate every triplet of page
+    # object of the form:
+    # [(score_tot, (v1, v2, v3), (id1v1, id2v1), (id1v2), (id1v3)), ...]
+    # 3. Computation variance of each possibility
+    # object of the form: [(score_tot, variance, (v1, v2, v3)), ...]
+    # 4. Computation global score
+    # object of the form: [(global_score, score_tot, var, (v1, v2, v3)), ...]
+    # 5. We sort the previous object and selects the first element
+    # 6. We should return [(score, (id_1, id_2, id_3, ...)), ...]
+
+    list_sc_vect = []
+    # Addition vector page
+    for score, tuple_ids in list_possib_score:
+        for i, idart in enumerate(tuple_ids):
+            vect_art = np.array(dict_idartv[idart], ndmin=2)
+            if i == 0:
+                vect_page = vect_art
+            else:
+                vect_page = np.concatenate((vect_page, vect_art), axis=None)
+        vect_page = np.array(vect_page, ndmin=2)
+        list_sc_vect.append((score, vect_page, tuple_ids))
+
+    # Enumeration every triplet of pages
+    all_triplets = [(tuple1, tuple2, tuple3)
+                    for i, tuple1 in enumerate(list_sc_vect)
+                    for j, tuple2 in enumerate(list_sc_vect[i + 1:])
+                    for tuple3 in list_sc_vect[i + j + 2:]]
+
+    # Computation of the score and score_far
+    list_sc_scfar = []
+    for triplet in all_triplets:
+        score_mod = sum((page[0] for page in triplet))
+        list_vect_page = [page[1] for page in triplet]
+        # Computation variance
+        vect_mean = np.mean(list_vect_page, axis=0)
+        var_triplet = 0
+        for score, vect_page, tuple_ids in triplet:
+            diff_vect = vect_page - vect_mean
+            var_triplet += int(np.sqrt(np.dot(diff_vect, diff_vect.T)))
+        global_score = score_mod + var_triplet
+        list_sc_scfar.append((global_score, score_mod, var_triplet, triplet))
+
+    if verbose > 0:
+        print(f"The length of list_sc_scfar: {len(list_sc_scfar)}")
+    if len(list_sc_scfar) == 0:
+        return []
+
+
+    # Standardization of the scores so that var and scores equal importance
+    # Here, what would be interesting is to standardize the scores far and tot
+    mean_mod = np.mean([score_mod for _, score_mod, _, _ in list_sc_scfar])
+    sd_mod = np.std([score_mod for _, score_mod, _, _ in list_sc_scfar])
+    if np.isclose(sd_mod, 0, atol=0.01):
+        sd_mod = 1
+
+    mean_var = np.mean([var for _, _, var, _ in list_sc_scfar])
+    sd_var = np.std([var for _, _, var, _ in list_sc_scfar])
+    if np.isclose(sd_var, 0, atol=0.01):
+        sd_var = 1
+
+    list_std_scores = []
+    for global_score, score_mod, var_triplet, triplet in list_sc_scfar:
+        mod_std = (score_mod - mean_mod) / sd_mod
+        var_std = (var_triplet - mean_var) / sd_var
+        new_global_score = mod_std + coef_var*var_std
+
+        list_std_scores.append((new_global_score, mod_std, var_std, triplet))
+
+    # We sort this list according to the global score
+    list_std_scores.sort(key=lambda x: x[0], reverse=True)
+    res = list_std_scores[0]
+
+    if verbose > 0:
+        print("The best triplet according to the global criteria:")
+        print(f"global_score: {res[0]:.2f}.")
+        print(f"score_mod: {res[1]:.2f}.")
+        print(f"var_triplet: {res[2]:.2f}.")
+
+    # I should return [(score, (id_1, id_2, id_3, ...)), ...]
+    triplet_result = list_std_scores[0][3]
+
+    triplet_out = []
+    for score, vect_p, list_ids in triplet_result:
+        triplet_out.append((score, list_ids))
+
+    return triplet_out, res[0], res[1], res[2]
 
 
 def CreateListeProposalsPage(dict_global_results, mdp_INPUT):
@@ -741,7 +920,7 @@ def CreateListeProposalsPage(dict_global_results, mdp_INPUT):
 
     Returns
     -------
-    liste_page_created : list of dicts
+    liste_page_created: list of dicts
             [{'MelodyId': '25782',
             'printCategoryName': 'INFOS',
             ('15', '46'): (id_art, id_carton),
@@ -833,16 +1012,18 @@ def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features, verbose):
             triplet_prop.append(vect_page)
         list_triplets_vect.append(triplet_prop)
 
+    # Computation variance of each triplet of pages.
     weighted_list_triplets = []
     for triplet, triplet_vect in zip(list_triplets, list_triplets_vect):
         score_total = sum([vent[0] for vent in triplet])
-        # Calcul du score far
-        # Here I should do the variance criterion instead
-        # 1. Computation of the vector mean page
-        # 2. Distance between each vector page and the mean vector page
-        score_far = 0
+
+        # Computation of the vector mean page
         mean_vector_pg = np.mean(triplet_vect, axis=0)
+
+        # Distance between each vector page and the mean vector page
+        score_far = 0
         for vect_page in triplet_vect:
+
             try:
                 diff_vect = vect_page - mean_vector_pg
             except Exception as e:
@@ -850,6 +1031,7 @@ def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features, verbose):
                 str_exc += "vect_page_1: {}.\n".format(vect_page)
                 str_exc += "vect_page_2: {}.".format(mean_vector_pg)
                 raise MyException(str_exc)
+
             try:
                 diff_vect = norm_weights * diff_vect
             except Exception as e:
@@ -857,6 +1039,7 @@ def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features, verbose):
                 str_exc += "poids: {}.".format(poids)
                 str_exc += "diff_vect: {}.".format(diff_vect)
                 raise MyException(str_exc)
+
             dist_pages = np.sqrt(np.dot(diff_vect, diff_vect.T))
             score_far += int(dist_pages)
         weighted_list_triplets.append((score_total, score_far, triplet))
@@ -870,14 +1053,38 @@ def SelectionProposalsNaive(vents_uniq, dico_id_artv, ind_features, verbose):
                 break
         print("{:-^75}".format("END WEIGHTED LIST TRIPLETS"))
 
+    # Standardization scores model. Computation mean and std of the score.
+    mean_sc_tot = np.mean([sc_tot for sc_tot, _, _ in weighted_list_triplets])
+    sd_sc_tot = np.std([sc_tot for sc_tot, _, _ in weighted_list_triplets])
+    if np.isclose(sd_sc_tot, 0, atol=0.01):
+        sd_sc_tot = 1
+
+    # Standardization variance. Computation mean and std of the variance.
+    mean_sc_far = np.mean([sc_far for _, sc_far, _ in weighted_list_triplets])
+    sd_sc_far = np.std([sc_far for _, sc_far, _ in weighted_list_triplets])
+    if np.isclose(sd_sc_far, 0, atol=0.01):
+        sd_sc_far = 1
+
+    # Standardization of the scores
+    std_weighted_list_triplets = []
+    for sc_tot, sc_far, triplet in weighted_list_triplets:
+        sc_tot_std = (sc_tot - mean_sc_tot) / sd_sc_tot
+        sc_far_std = (sc_far - mean_sc_far) / sd_sc_far
+        std_weighted_list_triplets.append((sc_tot_std, sc_far_std, triplet))
+
     # triplet = [(88176, (32234, 28797)), (sc, (id, id)), (sc, (id, id))]
-    f = lambda x: (x[0] - x[1] * 1500, x[2])
-    one_score_triplet = [f(x) for x in weighted_list_triplets]
+    # x[0] is the score_total.
+    # x[1] is the score_far.
+    # x[2] is the triplet.
+    # We want a triplet with a small score (corresponds to a distance between
+    # the pages and the layout) and a high variance.
+    f = lambda x: (x[0] - x[1]*0.5, x[2])
+    one_score_triplet = [f(x) for x in std_weighted_list_triplets]
     one_score_triplet.sort(key=itemgetter(0))
     best_prop = one_score_triplet[0]
 
     if verbose > 0:
-        print("What is returned by SelectionProposalsNaive : ")
+        print("What is returned by SelectionProposalsNaive: ")
         for elt in best_prop[1]:
             print(elt)
 
@@ -1027,8 +1234,10 @@ def ExtractAndComputeProposals(dico_bdd,
                                tol_area_images_mod,
                                tol_area_text_mod,
                                tol_total_area_mod,
+                               coef_var,
                                verbose):
     """
+    Creates 3 pages from a list of articles and a layout.
 
     Steps of the function:
         - Creates the lists of dictionaries with the articles and the layout.
@@ -1068,8 +1277,11 @@ def ExtractAndComputeProposals(dico_bdd,
         The tolerance between the area of the article and of the module.
         (advice: 0.3)
 
+    coef_var: float (between 0 and 1)
+        The importance given to the variance. The closer to one, the more imp.
+
     verbose: int
-        Whether to print info on what is going on. (default=2)
+        Whether to print info on what is going on.
 
     Returns
     -------
@@ -1077,6 +1289,20 @@ def ExtractAndComputeProposals(dico_bdd,
         Indicates that everything went well.
 
     """
+    t_start = time.time()
+    dict_system = {'duration_extraction_inputs': -1,
+                   'duration_method_naive': -1,
+                   'duration_method_mlv': -1,
+                   'duration_filtering': -1,
+                   'duration_attribution_score': -1,
+                   'duration_case_no_data': -1,
+                   'total_duration': -1,
+                   'score_page_0': -1,
+                   'score_page_1': -1,
+                   'score_page_2': -1,
+                   'score_global': -1,
+                   'score_model': -1,
+                   'variance_triplet': -1}
 
     # Indexes of nbSign, nbPhoto, aireImg for the function FiltreArticles.
     list_to_index = ['nbSign', 'aireTot', 'aireImg']
@@ -1087,15 +1313,17 @@ def ExtractAndComputeProposals(dico_bdd,
 
     # mdp_INPUT is a dict (id_mdp: dict_mdp)
     # rub_INPUT is a list of strings
+    t0 = time.time()
     args_ex = [path_data_input, verbose]
     list_arts_INPUT, mdp_INPUT, rub_INPUT = ExtractionDataInput(*args_ex)
+    dict_system['duration_extraction_inputs'] = time.time() - t0
 
     # Shows how the object mdp_INPUT looks like
     if verbose > 0:
         ShowsWhatsInMDP(mdp_INPUT)
 
     big_x, dico_id_artv = GetXInput(list_arts_INPUT, list_features)
-    # L'obtention du dico_arts_rub_X est une étape important
+    # L'obtention du dico_arts_rub_X est une étape importante
     # Visualisation des résultats
     if verbose > 0:
         ShowsXDictidartv(big_x, dico_id_artv, list_features)
@@ -1143,7 +1371,9 @@ def ExtractAndComputeProposals(dico_bdd,
         args_naive += [tol_area_text_mod, tol_total_area_mod, verbose]
 
         try:
+            t0 = time.time()
             dico_pos_naive, vents_uniq = methods.MethodeNaive(*args_naive)
+            dict_system['duration_method_naive'] = time.time() - t0
         except Exception as e:
             if verbose > 0:
                 print("\nError Method Naive: {}".format(e))
@@ -1178,27 +1408,34 @@ def ExtractAndComputeProposals(dico_bdd,
             args_mlv = [dico_bdd, liste_ids_found, mdp_ref, X_input]
             args_mlv += [dico_id_artv, list_features]
             try:
+                t0 = time.time()
                 dico_possi_mlv = methods.MethodeMLV(*args_mlv)
+                dict_system['duration_method_mlv'] = time.time() - t0
             except Exception as e:
                 if verbose > 0:
                     print("Error with MethodeMLV: {}".format(e))
                 continue
 
-            # Print the possibilities of the mthod MLV
+            # Print the possibilities of the method MLV
             if verbose > 0:
                 ShowsResultsMLV(dico_possi_mlv)
 
             # We use the dict result of the method NAIVE to filter results
             args_filt = [dico_pos_naive, dico_possi_mlv]
             try:
+                t0 = time.time()
                 dict_mlv_filtered = methods.ResultsFiltered(*args_filt)
+                dict_system['duration_filtering'] = time.time() - t0
             except Exception as e:
                 if verbose > 0:
                     print("Error with ResultsFiltered: {}".format(e))
+                    print("Since we don't find anything with the method MLV, ")
+                    print("we do only with the method naive.")
                 # Case where the mlv method didn't find anything, but the
                 # naive method did find some possibilities.
-                args_sel = [vents_uniq, dico_id_artv, ind_features]
+                args_sel = [vents_uniq, dico_id_artv, ind_features, verbose]
                 first_results = SelectionProposalsNaive(*args_sel)
+                dict_global_results[id_mdp][rub_INPUT] = first_results
 
                 if verbose > 0:
                     print("{:*^75}".format("NAIVE BIS"))
@@ -1206,7 +1443,10 @@ def ExtractAndComputeProposals(dico_bdd,
                         print(elt)
                     print("{:*^75}".format("END NAIVE BIS"))
 
-                dict_global_results[id_mdp][rub_INPUT] = first_results
+                # Add the scores of the 3 pages to the dict_system
+                for i, (score, ids) in enumerate(first_results):
+                    dict_system['score_page_' + str(i)] = score
+
                 continue
 
             # Shows results of the filtering
@@ -1215,8 +1455,26 @@ def ExtractAndComputeProposals(dico_bdd,
 
             # Génération des objets avec toutes les pages possibles,
             # s'il y a des articles pour chaque EMP.
-            first_results = ProposalsWithScore(dict_mlv_filtered)
+            t0 = time.time()
+            scored_pages = ProposalsWithScore(dict_mlv_filtered)
+            # first_results = [(score, (id1, id2, ...)), ...]
+
+            # Computation of the variance
+            first_results, gl_sc, sc_m, var_t = VarianceCriteria(scored_pages,
+                                                                 dico_id_artv,
+                                                                 coef_var,
+                                                                 verbose)
+
+            dict_system['duration_attribution_score'] = time.time() - t0
+            dict_system['score_global'] = gl_sc
+            dict_system['score_model'] = sc_m
+            dict_system['variance_triplet'] = var_t
+
             dict_global_results[id_mdp][rub_INPUT] = first_results
+
+            # Add the scores of the 3 pages to the dict_system
+            for i, (score, ids) in enumerate(first_results):
+                dict_system['score_page_' + str(i)] = score
 
             # Print the 3 best results
             if verbose > 0:
@@ -1233,8 +1491,14 @@ def ExtractAndComputeProposals(dico_bdd,
                     print(elt)
                 print("{:-^75}".format("END VENTS UNIQUE"))
 
+            t0 = time.time()
             args_sel = [vents_uniq, dico_id_artv, ind_features]
             first_results = SelectionProposalsNaive(*args_sel)
+            dict_system['duration_case_no_data'] = time.time() - t0
+
+            # Add the scores of the 3 pages to the dict_system
+            for i, (score, ids) in enumerate(first_results):
+                dict_system['score_page_' + str(i)] = score
 
             if verbose > 0:
                 print("{:*^75}".format("FIRST RES"))
@@ -1249,7 +1513,13 @@ def ExtractAndComputeProposals(dico_bdd,
     if verbose > 0:
         print("The list of page created: {}".format(list_created_pg))
 
+    dict_system['total_duration'] = time.time() - t_start
+
+    if verbose > 0:
+        for key, item in dict_system.items():
+            print(f"{key}: {item}")
+
     # Writing of the output file with the results
-    CreateXmlPageProposals(list_created_pg, file_out)
+    CreateXmlPageProposals(list_created_pg, file_out, dict_system)
 
     return "Xml output created"

@@ -24,6 +24,13 @@ We train 4 models in that scripts. They correspond to layouts with 2, 3, 4 or
 The models trained in that script are Gradient Boosting Classifiers that
 predict the best layout for a given vector page.
 
+Objects necessary:
+    - dict_pages
+    - dict_arts
+    - list_mdp
+
+If you save the models, they are stored in the same repertory as the data.
+
 """
 
 # ARG PARSER - SERVOR. Initilisation of the arguements of the script

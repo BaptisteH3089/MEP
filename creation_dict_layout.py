@@ -38,13 +38,13 @@ def CreationDictLayoutSimple(dico_bdd):
 
     Parameters
     ----------
-    dico_bdd : dictionary
+    dico_bdd: dictionary
         The usual dictionary with all the info on the page.
         Of the form {id_page: {..., 'dico_page': {...}}, ...}
 
     Returns
     -------
-    dict_layouts : dictionary
+    dict_layouts: dictionary
         A dictionary of the form {id_layout: {'nameTemplate': str,
                                               'cartons': list of tuples,
                                               'id_pages': list}}
@@ -53,8 +53,11 @@ def CreationDictLayoutSimple(dico_bdd):
     # Creation of the dictionary with all the layouts
     dict_layouts = {}
     cpt_layout = 0
+
     for id_page in dico_bdd.keys():
+
         id_layout = dico_bdd[id_page]['pageTemplate']
+
         # Check wether this layout is already in the dict
         if id_layout in dict_layouts.keys():
             cpt_layout += 1
@@ -68,8 +71,10 @@ def CreationDictLayoutSimple(dico_bdd):
             dict_layouts[id_layout] = {'nameTemplate': name_template,
                                        'cartons': list_cartons,
                                        'id_pages': [id_page]}
+
     f = lambda x: len(x[1]['id_pages'])
     dict_layouts = dict(sorted(dict_layouts.items(), key=f, reverse=True))
+
     return dict_layouts
 
 
@@ -79,17 +84,36 @@ def CreationDictLayoutSimple(dico_bdd):
 
 
 def CreationDictLayoutVerif(dico_bdd):
+    """
+
+    Parameters
+    ----------
+    dico_bdd: dict
+        Global dict with all the pages.
+
+    Returns
+    -------
+    dd_layouts_sm: dict
+        dd_layouts_sm[id_layout] = {'nameTemplate': name_template,
+                                    'cartons': list_cartons,
+                                    'id_pages': [id_page, ...],
+                                    'array': array_layout}.
+
+    """
     feat_carton = ['x', 'y', 'width', 'height', 'nbCol', 'nbPhoto']
     # Creation of the dictionary with all the layouts
     dd_layouts_sm = {}
     cpt_layout = 0
     n = len(dico_bdd)
+
     for i, id_page in enumerate(dico_bdd.keys()):
+
             id_layout = dico_bdd[id_page]['pageTemplate']
+
             # Check wether this layout is already in the dict
             if id_layout in dd_layouts_sm.keys():
                 cpt_layout += 1
-                # HERE I SHOULD DO SOME VERIFS
+
                 # 1. Check if the number of articles makes sense
                 # 2. Verify if the zonnings of the articles correspond
                 nb_arts_pg = len(dico_bdd[id_page]['articles'])
@@ -120,21 +144,38 @@ def CreationDictLayoutVerif(dico_bdd):
                                             'array': array_layout}
             if i % (n//50) == 0:
                 print(f"CreationDictLayoutVerif: {i/n:.2%}")
+
     f = lambda x: len(x[1]['id_pages'])
     dd_layouts_sm = dict(sorted(dd_layouts_sm.items(), key=f, reverse=True))
+
     return dd_layouts_sm
 
 
-def CreationDictLayoutsSmall(dict_pages, path_customer, save_dict=True):
+def CreationDictLayoutsSmall(dict_pages, path_customer):
+    """
+    Save the dict_layouts.
+
+    Parameters
+    ----------
+    dict_pages: dict
+        Global dict with all the pages.
+
+    path_customer: str
+        The path to the data of a customer.
+
+    Returns
+    -------
+    None.
+
+    """
     # Show if the results make sense
     dd_layouts_sm = CreationDictLayoutVerif(dict_pages)
     print("{:-^80}".format("Visualisation of the results"))
     for i, (key, val) in enumerate(dd_layouts_sm.items()):
         print(key)
         print(val)
-        if i == 10:
+        if i == 5:
             break
-    # Wheter to save or not the small dict.
-    if save_dict:
-        with open(path_customer + 'dict_layouts', 'wb') as f:
-            pickle.dump(dd_layouts_sm, f)
+    # Save the small dict.
+    with open(path_customer + 'dict_layouts', 'wb') as f:
+        pickle.dump(dd_layouts_sm, f)
