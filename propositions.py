@@ -21,6 +21,31 @@ class MyException(Exception):
     pass
 
 
+def Creationxml(statut, file_out):
+    """
+    Create a xml file with the statut of the app.
+
+    Parameters
+    ----------
+    statut: str
+        A string which describes what's going on.
+
+    file_out: str
+        The path to the file_out.
+
+    Returns
+    -------
+    bool
+        True.
+
+    """
+    root = ET.Element("root")
+    ET.SubElement(root, "statut").text = statut
+    tree = ET.ElementTree(root)
+    tree.write(file_out)
+    return True
+
+
 def CleanBal(txt):
     """
     Removes the xml tags <...> and their content.
@@ -1492,7 +1517,7 @@ def ExtractAndComputeProposals(dico_bdd,
                 print("{:-^75}".format("END VENTS UNIQUE"))
 
             t0 = time.time()
-            args_sel = [vents_uniq, dico_id_artv, ind_features]
+            args_sel = [vents_uniq, dico_id_artv, ind_features, verbose]
             first_results = SelectionProposalsNaive(*args_sel)
             dict_system['duration_case_no_data'] = time.time() - t0
 
@@ -1509,6 +1534,10 @@ def ExtractAndComputeProposals(dico_bdd,
             dict_global_results[id_mdp][rub_INPUT] = first_results
 
     list_created_pg = CreateListeProposalsPage(dict_global_results, mdp_INPUT)
+
+    if len(list_created_pg) == 0:
+        Creationxml("No possibilities", file_out)
+        return "Xml output created"
 
     if verbose > 0:
         print("The list of page created: {}".format(list_created_pg))

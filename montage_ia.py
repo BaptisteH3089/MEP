@@ -289,23 +289,66 @@ class GetLayout(Resource):
             raise MyException(str_exc)
 
         # We remove the .zip in the basename_file_in
-        path_data_input = dir_file_in + '/input/' + basename_file_in[:-4]
-        path_data_input_trunc = dir_file_in + '/input/'
+        dir_input = dir_file_in + '/input/'
+        path_data_input =  dir_input + basename_file_in[:-4]
+        path_data_input_trunc = dir_input + basename_file_in[:-4] + '/'
+        logger.info(f'path_data_input: {path_data_input}')
+        logger.info(f'path_data_input_trunc: {path_data_input_trunc}')
 
-        with zipfile.ZipFile(file_in, "r") as z:
-            z.extractall(path=path_data_input_trunc)
+        try:
+            list_dir_inp = os.listdir(dir_input)
+            logger.info(f"list_dir_inp= {list_dir_inp}")
+            list_dir_in = os.listdir(dir_file_in)
+            logger.info(f"list_dir_in= {list_dir_in}")
+        except Exception as e:
+            logger.error(f"Error listdir: {e}")
+
+        try:
+            zip_or_no = zipfile.is_zipfile(file_in)
+            logger.info(f'is_zipfile: {zip_or_no}')
+        except Exception as e:
+            logger.error(f"Error is_zipfile: {e}")
+
+        try:
+            with zipfile.ZipFile(file_in, "r") as z:
+                z.extractall(path=path_data_input_trunc)
+        except Exception as e:
+            str_exc = f"Error dezip: {e}.\nfile_in: {file_in}"
+            logger.error(str_exc)
+            logger.error(e, exc_info=True)
 
         if verbose > 0:
             print(f"path_data_input: {path_data_input} \n"
                   f"path_data_input_trunc: {path_data_input_trunc}\n")
 
-        directories = os.listdir(path_data_input)
+        try:
+            directories = os.listdir(path_data_input)
+        except Exception as e:
+            str_exc = (f"Error os.listdir(path_data_input): {e}.\n"
+                       f"path_data_input: {path_data_input}.")
+            logger.error(str_exc)
+            raise MyException(str_exc)
+
+        logger.info(f'directories: {directories}')
+
+        # Case where it is still the basename_file_in
+        if basename_file_in in directories:
+            logger.info("basename_file_in in directories")
+            if verbose > 0:
+                print(f"The old directories: {directories}")
+            path_data_input = path_data_input_trunc + basename_file_in[:-4]
+            directories = os.listdir(path_data_input)
+            if verbose > 0:
+                print(f"The new directories: {directories}")
+
+        logger.info('basename_file_in not in directories')
 
         if verbose > 0:
             print(f"directories: {directories}\n")
 
         # Case creation of pages with a given layout
         if 'pageTemplate' in directories:
+            logger.info("pageTemplate in directories")
             if verbose > 0:
                 print("{:-^80}".format(""))
                 print("{:-^80}".format("| Case with layout input |"))
@@ -313,10 +356,15 @@ class GetLayout(Resource):
             args_lay = [dict_pages, list_mdp, path_data_input, file_out]
             args_lay += [list_features, tol_area_images_mod, tol_area_text_mod]
             args_lay += [tol_total_area_mod, param['coef_var'], verbose]
-            propositions.ExtractAndComputeProposals(*args_lay)
+            try:
+                propositions.ExtractAndComputeProposals(*args_lay)
+            except Exception as e:
+                logger.error(e, exc_info=True)
+                raise MyException(f"Error ExtractAndC: {e}.")
 
         # Case where we must choose a layout
         else:
+            logger.info("pageTemplate not in directories")
             if verbose > 0:
                 print("{:-^80}".format(""))
                 print("{:-^80}".format("| Case without layout input |"))
@@ -325,7 +373,11 @@ class GetLayout(Resource):
             args_nolay += [list_mdp, dict_gbc, dict_layouts, list_features]
             args_nolay += [param['tol_total_area'], param['tol_nb_images']]
             args_nolay += [param['tol_score_min'], param['coef_var']]
-            without_layout.FinalResultsMethodNoLayout(*args_nolay, verbose)
+            try:
+                without_layout.FinalResultsMethodNoLayout(*args_nolay, verbose)
+            except Exception as e:
+                logger.error(e, exc_info=True)
+                raise MyException(f"Error FinalResNL: {e}.")
 
         logger.info('End of GET')
 

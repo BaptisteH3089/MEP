@@ -207,6 +207,8 @@ def AddOnePageToDatabase(file_in,
     if id_page in dict_pages.keys():
         print(f"There is already a page with that id in the data.")
         print(f"Under the name: {dict_pages[id_page]['pageName']}")
+        # Creation of the file_out with 'OK' to communicate to webservice
+        module_montage.Creationxml("OK", file_out)
         database = [dict_pages, dict_arts, list_mdp, dict_page_array,
                     dict_page_array_fast, dict_layouts_small]
         return database

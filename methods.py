@@ -478,10 +478,27 @@ def FiltreArticles(dico_id_artv,
     if verbose > 0:
         print("L'aire des images du carton : {}".format(aire_img_cart))
 
-    fcn = lambda x: ((1 - tol_area_images)*aire_img_cart <= x[1][0][img] \
-                     <= (1 + tol_area_images)*aire_img_cart)
+    #fcn = lambda x: ((1 - tol_area_images)*aire_img_cart <= x[1][0][img] \
+                     #<= (1 + tol_area_images)*aire_img_cart)
 
-    arts_left_img = [ida for ida, _ in filter(fcn, list(dico_id_artv.items()))]
+    #arts_left_img = [ida for ida, _ in filter(fcn, list(dico_id_artv.items()))]
+
+
+    # Rather if there is one image on the article and none in the module, we
+    # can't insert the article in the module
+    # If no image in the article, we can choose all modules
+    arts_left_img = []
+    for ida, vecta in dico_id_artv.items():
+        if vecta[0][img] > 0:
+            if aire_img_cart > 0:
+                arts_left_img.append(ida)
+        else:
+            arts_left_img.append(ida)
+
+    if len(arts_left_img) == 0:
+        str_exc = 'No article for that carton with the filter on the area '
+        str_exc += 'of the images.'
+        raise MyException(str_exc)
 
     if verbose > 0:
         print(f"les ids des articles qui correspondent : {arts_left_img}")
@@ -489,21 +506,28 @@ def FiltreArticles(dico_id_artv,
     dico_id_artv_img = {ida: dicoa for ida, dicoa in dico_id_artv.items()
                         if ida in arts_left_img}
 
-    if len(arts_left_img) == 0:
-        str_exc = 'No article for that carton with the filter on the area '
-        str_exc += 'of the images.'
-        raise MyException(str_exc)
 
     # Filtering on the area of the text.
     diff = aire_tot_cart - aire_img_cart
     if verbose > 0:
-        print("L'aire du txt du carton : {}".format(diff))
+        print("L'aire tot du carton : {}".format(aire_tot_cart))
+        print("L'aire tot - img du carton : {}".format(diff))
 
-    fcn = lambda x: ((1 - tol_area_text)*diff <=  x[1][0][tot] - x[1][0][img] \
-                     <= (1 + tol_area_text)*diff)
+    #fcn = lambda x: ((1 - tol_area_text)*diff <=  x[1][0][tot] - x[1][0][img] \
+                     #<= (1 + tol_area_text)*diff)
 
-    list_items_dico_idartv = list(dico_id_artv_img.items())
-    arts_left_txt = [ida for ida, _ in filter(fcn, list_items_dico_idartv)]
+    #list_items_dico_idartv = list(dico_id_artv_img.items())
+    #arts_left_txt = [ida for ida, _ in filter(fcn, list_items_dico_idartv)]
+
+    arts_left_txt = []
+    for ida, vecta in dico_id_artv.items():
+        if vecta[0][img] > 0:
+            diff = aire_tot_cart - aire_img_cart
+        else:
+            diff = aire_tot_cart
+        if (1 - tol_area_text)*diff <=  vecta[0][tot] - vecta[0][img]:
+            if vecta[0][tot] - vecta[0][img] <= (1 + tol_area_text)*diff:
+                arts_left_txt.append(ida)
 
     if verbose > 0:
         print(f"les ids des articles qui correspondent : {arts_left_txt}")
@@ -698,6 +722,10 @@ def SimpleLabels(liste_labels):
             simpler_list.append('SURTITRE')
         elif 'PHOTO' in elt:
             simpler_list.append('PHOTO')
+        elif elt == 'SURTITRE (COMMUNE) TITRE TEXTE':
+            simpler_list += ['SURTITRE', 'TEXTE']
+        elif elt == 'TEXTE INTERTITRE AUTEUR':
+            simpler_list.append('TEXTE')
         else:
             simpler_list.append(elt)
     return simpler_list
@@ -898,8 +926,16 @@ def MethodeNaive(mdp_ref,
         str_exc = "No possibility for at least one location: {}"
         raise MyException(str_exc.format(liste_len))
 
+    if verbose > 0:
+        print("The dico_possib_placements")
+        for key, item in dico_possib_placements.items():
+            print(f"{key} {item}")
+
     l_args = [emp_poss for emp_poss in dico_possib_placements.values()]
-    every_possib = ProductList(*l_args)
+    if len(l_args) == 1:
+        every_possib = [[possib_one] for possib_one in l_args[0]]
+    else:
+        every_possib = ProductList(*l_args)
 
     # Calcul des scores de chaque ventil. every_possib = [[id1, id2], ...].
     # Retourne [([id1, id2, id3], score_vent), ...].

@@ -868,7 +868,7 @@ def ShowsBestTriplet(best_triplet):
 
 
 def SelectBestTripletAllNumbers(all_triplets, global_mean_vect,
-                                global_vect_std, coef_var, verbose):
+                                global_vect_std, coef_var, verbose, file_out):
     """
     Computation of the variance of a proposition and then the final score of a
     triplet.
@@ -893,6 +893,9 @@ def SelectBestTripletAllNumbers(all_triplets, global_mean_vect,
 
     verbose: int >= 0
         If verbose > 0, print info.
+
+    file_out: str
+        The path to a xml file to create
 
     Raises
     ------
@@ -946,6 +949,11 @@ def SelectBestTripletAllNumbers(all_triplets, global_mean_vect,
 
     # Ultimately, we take the triplet with the best score
     all_triplets_scores.sort(key=itemgetter(0), reverse=True)
+
+    if len(all_triplets_scores) == 0:
+        Creationxml('No possib', file_out)
+        raise MyException('No possibility found')
+
     best_triplet = all_triplets_scores[0]
 
     if verbose > 0:
@@ -973,6 +981,8 @@ def GetMeanStdFromList(big_list_sc_label_vectsh):
         Vector line with the stds (dim=2).
 
     """
+    if len(big_list_sc_label_vectsh) == 0:
+        return 0, 1
     # Creation of a big matrix in order to compute the global mean and std
     for i, tuple_page in enumerate(big_list_sc_label_vectsh):
         if i == 0:
@@ -1007,6 +1017,7 @@ def XScores(dict_arts_input, list_features):
         dim(X) = (nb_articles_input, len(list_features)).
 
     """
+    X = np.zeros(1)
     for k, dicta in enumerate(dict_arts_input.values()):
         vect_art = np.array([dicta[x] for x in list_features], ndmin=2)
         if k == 0:
@@ -1246,7 +1257,9 @@ def ProposalsWithoutGivenLayout(file_in,
                     for p3 in big_list_sc_label_vectsh[i + j + 2:]]
 
     args_all_nb = [all_triplets, gbal_mean_vect, gbal_vect_std, coef_var]
-    all_triplets_scores = SelectBestTripletAllNumbers(*args_all_nb, verbose)
+    all_triplets_scores = SelectBestTripletAllNumbers(*args_all_nb,
+                                                      verbose,
+                                                      file_out)
 
     if verbose > 0:
         str_prt = "Duration computation scores triplet"
@@ -1412,6 +1425,14 @@ def FindLocationArticleInLayout(dico_bdd,
         dict_xmlout = {tuple(module): ida for module, ida in zip(*args_zip)}
         list_xmlout.append(dict_xmlout)
     return list_xmlout
+
+
+def Creationxml(statut, file_out):
+    root = ET.Element("root")
+    ET.SubElement(root, "statut").text = statut
+    tree = ET.ElementTree(root)
+    tree.write(file_out)
+    return True
 
 
 def CreateXmlOutNoLayout(list_xmlout, dict_system, file_out):

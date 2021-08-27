@@ -488,8 +488,6 @@ plt.scatter(X_pages_pca[:, 0], X_pages_pca[:, 1], s=1)
 # Maybe  we can do some clustering ? don't really see the point of doing that
 
 
-
-
 #%%
 
 dict_nb = {}
@@ -506,8 +504,7 @@ for idp, dicop in dict_pages.items():
 for key, item in dict_nb.items():
     print(f"{key} {item}")
 
-
-plt.hist(list_hist, )
+plt.hist(list_hist)
 
 
 #%%
@@ -523,5 +520,25 @@ plt.xlabel('Pages with n articles')
 plt.ylabel('Fréquence')
 #plt.show()
 plt.savefig('/Users/baptistehessel/Documents/DAJ/MEP/DocumentationTeXShop/PresentationFinale/Images/ExploPages.pdf')
+
+
+#%%
+
+print(len(dict_pages))
+
+cpt = 0
+list_ids_layout = []
+for dicop in dict_pages.values():
+    list_ids_layout.append(dicop['pageTemplate'])
+    for dicta in dicop['articles'].values():
+        cpt += 1
+print(cpt)
+
+list_count_lay = [(temp, list_ids_layout.count(temp)) for temp in set(list_ids_layout)]
+print(len(list_count_lay))
+
+
+
+
 
 
